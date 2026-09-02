@@ -1,0 +1,690 @@
+# CSM/CSAL V1 POC manager walkthrough
+
+## What this script is for
+
+Use this while showing these two Databricks notebooks:
+
+1. `CSM CSAL V1 POC V1`
+2. `CSM CSAL V1 Ground Truth`
+
+The script follows the actual notebook cells in order. The wording is intentionally conversational, so you can explain the work as a story instead of reading code line by line.
+
+The complete walkthrough takes about 8 to 10 minutes. If the meeting is short, use the one-minute version near the end.
+
+## The story in one line
+
+> We kept production unchanged, separated the booking data by its correct business grain, gave Genie one focused view, and tested it against the same frozen data and independently checked answers.
+
+## Before the meeting
+
+- Open both notebooks before you start.
+- Use the saved outputs. There is no need to rerun the whole benchmark during the meeting.
+- Keep any customer-level V5 sample values off screen unless your manager specifically asks to see them.
+- Keep the final semantic scorecard ready. The final result is `38.9%` for the Wide Baseline and `100%` for the Booking Scope view.
+- Do not call the personal schema private. Say it is your personal POC working location.
+- Do not say the view was faster. It was slower in this pilot.
+
+---
+
+# Opening, about 40 seconds
+
+Say:
+
+> I want to show you a small proof of concept I did for the CSM and CSAL agent.
+>
+> The question was simple. If Genie gets the full wide Gold table, does it answer booking questions as reliably as when we give it a smaller view designed for one clear business grain?
+>
+> I did not change production. I read one frozen production snapshot and created all POC objects in my personal Databricks schema. Then I asked both Genie spaces the same questions and checked their answers against independent ground truth.
+
+Then add:
+
+> Also, the problem is not just that the Gold table is wide. Spark can handle many columns. The concern is that allocation, booking outcomes, and commitment values are present at different grains. That can repeat values and give the agent multiple ways to interpret a simple question.
+
+---
+
+# Notebook 1: `CSM CSAL V1 POC V1`
+
+## Cell 1: Notebook purpose and safety boundary
+
+What it does:
+
+- States that the source is version-pinned.
+- States that checks happen before anything is saved.
+- States that only new `_poc_v1` objects are created in `usr.jayarsr`.
+
+Say:
+
+> This first cell explains the boundary of the work. I used the production Gold table only as a read-only source. Everything new is clearly marked as POC V1 and is stored only in my personal working schema.
+
+## Cell 2: Imports
+
+What it does:
+
+- Keeps the Python and PySpark imports together at the top.
+
+Say:
+
+> This cell is only the technical setup. I kept the imports at the top so the notebook is easy to read and maintain.
+
+Do not spend more than a few seconds here.
+
+## Cell 3: Source contract and grains
+
+What it does:
+
+- Pins the source to `dev.sales_ai_assistant_gold.csm_csal_summary`, Delta version 38.
+- Defines the target objects.
+- Defines three separate grains:
+  - allocation grain;
+  - booking grain;
+  - commitment grain.
+- Defines the 11 TEU measures and four existing Gold flags used in V1.
+- Defines safe helper functions and interim POC keys.
+
+Say:
+
+> This is the most important design cell. Instead of treating every column as if it belongs to one level, I declared where each business value actually belongs.
+>
+> Allocation is at month, week, customer, sales rep, agreement, TCR, service, and category. Booking outcomes are at customer, agreement, week, service, and TCR. The total reviewed commitment is at customer, agreement, week, and service.
+>
+> That separation is what protects us from accidental duplication.
+
+If asked about the keys, say:
+
+> These are deterministic interim POC keys built from the existing source values. They are not enterprise customer IDs or final production identities.
+
+## Cell 4: Confirm the current user
+
+What it does:
+
+- Displays the signed-in Databricks account.
+
+Say:
+
+> This proves which account ran the notebook. It is a basic safety check before any personal-schema work.
+
+## Cell 5: Check the target schema and grants
+
+What it does:
+
+- Confirms `usr.jayarsr` exists.
+- Reviews the available schema grants.
+- Stops if the required access cannot be inferred.
+
+Say:
+
+> Before creating anything, I confirmed that the target was my own working schema and checked the relevant access. I am not claiming the schema is private. Visibility still depends on Databricks grants.
+
+## Cell 6: Pin and read the source snapshot
+
+What it does:
+
+- Confirms Delta version 38 exists.
+- Records its commit timestamp and snapshot ID.
+- Reads the exact frozen version instead of the changing current table.
+
+Say:
+
+> Here I froze the comparison to Delta version 38. This means both designs are based on the same 242,370 physical rows, so the test does not move underneath us.
+
+Important wording:
+
+> The timestamp shown here is the Delta commit timestamp. I am not treating it as the business data-as-of date.
+
+## Cell 7: Check source rows and required columns
+
+What it does:
+
+- Confirms all V1-required fields exist.
+- Confirms the source has exactly 242,370 rows.
+- Records the actual source column count.
+
+Say:
+
+> This cell confirms that the frozen source matches the expected snapshot and contains the fields needed for this test. The notebook records the full width, but this V1 validates only the booking and allocation contract used in the POC. It is not a claim that every Gold column was validated.
+
+## Cell 8: Check the source grain and protect existing objects
+
+What it does:
+
+- Confirms the eight-column allocation grain has no duplicate keys.
+- Checks that every target `_poc_v1` object is absent before writing.
+- Stops rather than overwriting an existing object.
+
+Say:
+
+> This is another safety gate. The source allocation grain must be unique, and the notebook refuses to replace anything that already exists. If either check fails, it stops.
+
+## Cell 9: Build the allocation fact
+
+What it does:
+
+- Creates the allocation fact at its exact eight-column grain.
+- Keeps reviewed, original, and final TEU.
+- Adds the interim dimension keys and snapshot metadata.
+
+Say:
+
+> This is the allocation fact. One row represents one allocation slice at the full allocation grain. I am keeping allocation measures here instead of mixing them with booking-outcome totals.
+
+Key number:
+
+> It contains 242,370 rows, which matches the source allocation grain.
+
+## Cell 10: Build the booking-outcome fact
+
+What it does:
+
+- Checks whether repeated physical rows disagree on booking values or flags.
+- Blocks the build if any booking scope has conflicting values.
+- Safely collapses repeated rows to one booking-scope row.
+
+Say:
+
+> This is where we handle repeated booking values. Before collapsing anything, the notebook proves that repeated physical rows contain the same booking measures and stored flags.
+>
+> There were zero conflicts, so the repeated values could safely become one row at customer, agreement, week, service, and TCR.
+
+Key number:
+
+> The result is 238,392 booking-scope rows.
+
+## Cell 11: Build the commitment fact
+
+What it does:
+
+- Checks that `total_reviewed_teu` is stable at commitment grain.
+- Creates one commitment row per customer, agreement, week, and service.
+
+Say:
+
+> The reviewed commitment belongs one level higher than TCR. This cell proves that the denominator is stable at that level and stores it once there.
+
+Key number:
+
+> The result is 187,388 commitment-scope rows, with zero denominator conflicts.
+
+## Cell 12: Build the six dimensions
+
+What it does:
+
+- Creates customer-agreement, service, reporting-week, TCR, category, and sales-representative dimensions.
+- Keeps readable source values and normalized search values.
+
+Say:
+
+> These are small lookup dimensions that make the model easier to understand and validate. They preserve readable values for users and search, while the facts use consistent interim keys.
+
+Then be clear:
+
+> These are POC source-value dimensions. They are not final master-data dimensions or governed enterprise IDs.
+
+## Cell 13: Validate uniqueness, relationships, TEU, and booking equations
+
+What it does:
+
+- Checks every fact and dimension grain for duplicates.
+- Checks key collisions and fact-to-dimension coverage.
+- Checks that TEU values are nonnegative where applicable.
+- Checks that booked TEU equals the sum of the booking outcome components when all components are populated.
+- Preserves all-null booking rows instead of silently turning them into zero.
+
+Say:
+
+> Before saving anything, this cell tests whether the model is internally trustworthy. It checks uniqueness, relationships, keys, TEU values, and the booking equation.
+>
+> All of these checks passed. We also preserved the 305 all-null booking groups for audit. We did not convert missing booking data into zero demand.
+
+## Cell 14: Reconcile back to the source and select the fan-out example
+
+What it does:
+
+- Reconciles the facts back to the frozen source at the correct grain.
+- Compares a naive wide-table sum with the grain-safe booking result.
+- Selects one deterministic multi-row booking scope for the V5 test.
+- Applies the final in-memory validation gate.
+
+Say:
+
+> This cell proves that separating the grains did not change the business measures. The totals reconcile when each metric is compared at the grain where it belongs.
+>
+> It also shows why the agent needs care with the wide table. The same booking values can appear on multiple physical allocation rows, so a direct sum can overcount them.
+
+When the sample appears, say:
+
+> This sample becomes our duplicate-row test later. I will not show the customer details here, but the point is that multiple wide rows should still return the booking measures only once.
+
+## Cell 15: Persist the validated tables
+
+What it does:
+
+- Writes the frozen baseline, three facts, and six dimensions only after validation passes.
+- Uses error-if-exists behavior.
+
+Say:
+
+> Only after all earlier checks passed did the notebook save the POC tables. The write mode is intentionally strict. It does not overwrite or replace an existing object.
+
+## Cell 16: Create the Booking Scope agent view
+
+What it does:
+
+- Creates `agent_booking_risk_poc_v1`.
+- Safely joins the booking fact to its commitment denominator.
+- Keeps one row per customer, agreement, week, service, and TCR.
+- Exposes seven booking measures, reviewed TEU, four percentages, four stored flags, status fields, and snapshot metadata.
+
+Say:
+
+> This is the view the focused Genie space actually uses. The agent does not need to discover all the fact and dimension joins itself.
+>
+> It receives one small, readable contract at one declared grain. The percentages are calculated only when the denominator is valid, and the current Gold flags are carried as stored.
+
+Key numbers:
+
+> The view has 29 columns and 238,392 rows, exactly matching the booking fact.
+
+Important wording:
+
+> The current cancellation and rejection flags are legacy stored rules. They are not calibrated probabilities, and this POC did not change their thresholds.
+
+## Cell 17: Write the manifest
+
+What it does:
+
+- Saves one control record with the source version, commit timestamp, row counts, validation results, and limitations.
+
+Say:
+
+> This is the audit record for the build. It tells us exactly which snapshot was used, what was created, which checks passed, and what the POC does not claim.
+
+## Cell 18: Show the final object inventory
+
+What it does:
+
+- Lists each personal POC table or view.
+- Shows its type, row count, column count, and declared grain.
+
+Say:
+
+> This is the final personal object inventory. It contains the frozen baseline, three facts, six dimensions, one Booking Scope view, and one manifest. Production is still unchanged.
+
+## Cell 19: Final release checks
+
+What it does:
+
+- Displays the validation summary, relationship coverage, reconciliation, overcount evidence, and final result.
+
+Say:
+
+> This is the final build checkpoint. Every stated V1 validation returned PASS. That means the personal POC is ready for testing. It does not mean the full CSM and CSAL architecture is production-ready.
+
+Transition to the second notebook:
+
+> Now that the data contract is validated, the next step is to test whether it actually helps Genie. That is what the second notebook does.
+
+---
+
+# Notebook 2: `CSM CSAL V1 Ground Truth`
+
+## Cell 1: Ground-truth purpose
+
+What it does:
+
+- States that this notebook is read-only.
+- Builds an independent answer key from the frozen wide baseline.
+
+Say:
+
+> I did not allow the agents to define their own correctness. This notebook creates the answer key independently from the frozen baseline and saves a deterministic hash for every result.
+
+## Cell 2: Ground-truth definitions and hashing
+
+What it does:
+
+- Defines the grains, measures, flags, expected snapshot, and numeric normalization.
+- Defines deterministic result hashing.
+
+Say:
+
+> This cell makes the comparison repeatable. It fixes the expected snapshot, output structure, numeric precision, and hashing method, so the scoring is not based on visual judgment alone.
+
+## Cell 3: Verify the manifest and frozen baseline
+
+What it does:
+
+- Confirms the manifest has one PASS record.
+- Confirms the source, snapshot ID, Delta version, commit timestamp, and row count.
+- Stops if the benchmark points to different data.
+
+Say:
+
+> Before building any expected answer, this cell proves that we are still using the same version 38 snapshot with 242,370 rows.
+
+## Cell 4: Prove and collapse the booking grain
+
+What it does:
+
+- Verifies the seven booking measures and four flags are invariant within each booking scope.
+- Produces one row per booking grain.
+
+Say:
+
+> This independently repeats the booking-grain check for ground truth. There were zero conflicting booking groups, and the result contains 238,392 booking scopes.
+
+## Cell 5: Prove and collapse the commitment grain
+
+What it does:
+
+- Verifies `total_reviewed_teu` is stable at commitment grain.
+- Produces one row per commitment scope.
+
+Say:
+
+> This independently checks the denominator. There were zero conflicts across 187,388 commitment scopes.
+
+## Cell 6: Build the independent truth dataset
+
+What it does:
+
+- Null-safely joins booking scope to commitment scope.
+- Calculates fulfillment, booking, cancellation, and rejection percentages consistently.
+- Confirms the row count stays at 238,392.
+
+Say:
+
+> This creates the clean answer-key dataset. The join neither adds nor removes booking scopes, and all percentages use one consistent formula.
+
+## Cell 7: V1, lowest fulfillment
+
+What it does:
+
+- Returns the 20 valid scopes with the lowest fulfillment percentage.
+- Fixes the columns, filters, ordering, limit, and result hash.
+
+Say:
+
+> V1 tests a very common request: show the lowest fulfillment scopes. The ordering is fully deterministic so repeated runs can be compared exactly.
+
+## Cell 8: V2, high cancellation
+
+What it does:
+
+- Uses `is_high_cancellation` exactly as stored.
+- Returns booked TEU, cancelled TEU, and cancellation percentage.
+
+Say:
+
+> V2 tests whether the agent uses the existing high-cancellation flag and returns the correct booking measures. This benchmark reproduces the current rule. It does not approve or recalibrate the cutoff.
+
+## Cell 9: V3, high rejection
+
+What it does:
+
+- Uses `is_high_rejection` exactly as stored.
+- Returns booked TEU, rejected TEU, and rejection percentage.
+
+Say:
+
+> V3 is the same type of test for high rejection. Again, it checks the current stored business logic without inventing a new threshold.
+
+## Cell 10: V4, above CSAL
+
+What it does:
+
+- Uses `is_above_csal` exactly as stored.
+- Returns booked TEU, reviewed TEU, and booking percentage.
+
+Say:
+
+> V4 checks whether the agent can correctly find scopes currently marked above CSAL and use the right denominator.
+
+## Cell 11: V5, repeated physical rows but one business result
+
+What it does:
+
+- Selects one deterministic booking scope that appears on more than one wide-table row.
+- Requires the seven booking TEU measures to be returned exactly once.
+
+Say:
+
+> V5 is our grain test. The same booking scope appears on multiple physical rows in the wide table, but the business answer must still be one row. This is where the focused view should make the agent's job easier.
+
+Presentation note:
+
+> Do not read the actual customer or agreement values aloud. Explain only the behavior being tested.
+
+## Cell 12: V6, exact customer with no match
+
+What it does:
+
+- Searches for a deliberately nonexistent customer.
+- Requires zero result rows.
+
+Say:
+
+> V6 is a safe no-data test. If the exact customer does not exist, the agent should return no records. It must not substitute another customer or give a portfolio answer.
+
+## Cell 13: G1 unsupported swap guardrail
+
+What it does:
+
+- Defines an executable swap and guaranteed-capacity request as unsupported in this V1.
+- Expects no SQL.
+
+Say:
+
+> This is a guardrail test. Swap execution and guaranteed reservable capacity are outside the Booking Scope V1. The correct answer is to refuse safely rather than invent a recommendation.
+
+## Cell 14: Summarize the answer key
+
+What it does:
+
+- Collects the six questions, exact SQL, output columns, row counts, and hashes.
+
+Say:
+
+> This is the final independent answer key. Both Genie spaces are judged against exactly the same expected results.
+
+## Cell 15: Benchmark preflight
+
+What it does:
+
+- Confirms both Genie spaces exist.
+- Confirms both use the same warehouse.
+- Confirms each space is attached only to its assigned personal source.
+- Defines six scored questions, three repetitions, and one guardrail.
+
+Say:
+
+> Here I set up the controlled comparison. Agent A sees only the frozen wide baseline. Agent B sees only the 29-column Booking Scope view. Both answer the same questions three times.
+
+Be precise if asked about configuration parity:
+
+> The same warehouse and intended instructions were used. The available API did not independently expose every model, instruction-text, and result-limit setting, so I have kept that as a documented limitation.
+
+## Cell 16: Run the 36 comparisons
+
+What it does:
+
+- Runs six questions, three times, against two Genie spaces.
+- Uses a fresh conversation for each run.
+- Alternates the agent order.
+- Captures generated SQL, results, hashes, latency, structure, sources, and errors.
+- Runs the two guardrail checks separately.
+
+Say:
+
+> This is the actual experiment. Six questions times three repetitions times two agents gives 36 scored runs. Every run captures the generated SQL and the final result, so we can check correctness, repeatability, complexity, and latency separately.
+
+## Cell 17: Initial mechanical score
+
+What it does:
+
+- Produces the first exact-hash comparison.
+
+Say:
+
+> This was the first mechanical score, but it is not the final business result. During review, I found that one test expected extra identifier columns that the question had not requested. I also found that some valid percentage aliases were being counted as wrong even when the values matched.
+
+Important:
+
+> Do not present the Cell 17 percentage as the final benchmark result.
+
+## Cell 18: Audit the stored runs without asking new questions
+
+What it does:
+
+- Rebuilds the benchmark evidence from the saved Genie conversations.
+- Corrects the V5 expected output to the seven requested measures.
+- Re-executes and rescans stored SQL without sending new Genie questions.
+
+Say:
+
+> Instead of rerunning the agents until the score looked better, I audited the original stored conversations. No new Genie questions were sent. The correction changed the scoring contract, not the agent answers.
+
+## Cell 19: Detailed audit report
+
+What it does:
+
+- Shows column alignment, corrected hashes, source isolation, consistency, latency, and SQL structure.
+- Documents the intermediate strict-contract result.
+
+Say:
+
+> This cell documents the detailed audit. It separates column-contract issues from result issues and confirms that every run stayed within its assigned source.
+
+Then clarify:
+
+> The strict audit was still treating every unapproved alias as a failed contract. For the manager result, I use the final semantic audit, where an alias is accepted only after its values are independently verified row by row.
+
+---
+
+# Final semantic scorecard to present
+
+Show the output beginning with `A. ALIAS VERIFICATION`, or show the saved final comparison report.
+
+Say:
+
+> After the contract audit, I ran one final semantic check over the same 36 stored runs. Five alias mappings were accepted only after their values matched the expected result row by row. Two booking-percentage aliases were rejected because they matched only 17 of 20 rows.
+>
+> The final business result is this:
+>
+> The Wide Baseline answered 7 of 18 runs correctly, which is 38.9 percent.
+>
+> The Booking Scope view answered 18 of 18 correctly, which is 100 percent for these six tested booking patterns.
+>
+> That is an observed improvement of 61.1 percentage points.
+
+Then explain consistency:
+
+> The Booking Scope view was stable for all six question groups. The Wide Baseline was stable for four, unstable for the lowest-fulfillment question, and one above-CSAL group could not be evaluated consistently because the booking-percentage alias did not produce the same values.
+
+Then explain safety:
+
+> All 36 runs stayed within their assigned source. There were no cross-table references and no SELECT-star queries. Both agents also refused the unsupported swap request.
+
+Then explain the honest limitation:
+
+> Correctness improved, but speed did not. The Wide Baseline median response time was 18.1 seconds. The Booking Scope median was 24.3 seconds.
+>
+> SQL complexity was mixed too. The focused view produced more accurate answers, but its generated SQL was not smaller on every measure. So the proven benefit here is correctness and consistency, not latency.
+
+---
+
+# Recommendation and closing
+
+Say:
+
+> My recommendation is not to replace the production Gold table and not to migrate everything into a star schema immediately.
+>
+> I would keep the existing Gold table for current consumers and add small, governed semantic views for Genie one business domain at a time. Each view should have one declared grain, clear column names, and its own verified benchmark before it is connected to an agent.
+>
+> This V1 proves the Booking Scope view pattern for six booking-focused questions. It does not yet prove MQC, CRM, trends, cross-fact questions, threshold calibration, or executable swap recommendations.
+
+Final line:
+
+> So the simple outcome is that we left production unchanged, tested both designs on the same frozen data, and the focused Booking Scope view improved semantic correctness from 38.9 percent to 100 percent for this limited test, with full repeatability but no latency improvement.
+
+---
+
+# One-minute version
+
+> I tested whether Genie performs better on our wide CSM and CSAL Gold structure or on one smaller booking-focused view.
+>
+> I did not change production. I used a frozen Delta version 38 snapshot with 242,370 rows and built the POC only in my personal schema. I separated allocation, booking outcomes, and commitment values by their correct grains, validated the keys and TEU reconciliations, and created a 29-column Booking Scope view with 238,392 rows.
+>
+> Then I compared two isolated Genie spaces using the same six questions three times each. The Wide Baseline produced 7 correct runs out of 18, or 38.9 percent. The Booking Scope view produced 18 out of 18, or 100 percent. It was also stable for all six question groups.
+>
+> The focused view was not faster. Its median latency was 24.3 seconds compared with 18.1 seconds for the wide baseline. So the proven improvement is correctness and consistency, not speed.
+>
+> My recommendation is to keep production unchanged and add small, tested semantic views gradually, one domain at a time.
+
+---
+
+# Likely manager questions and short answers
+
+## Why not just let Genie use the wide Gold table?
+
+> We can keep the wide table for the pipeline and existing consumers. The issue for Genie is that several business grains and similar metrics are exposed together. A focused view gives Genie a clearer contract for one type of question.
+
+## Is the data in the wide table wrong?
+
+> No. This benchmark does not prove bad source data. It shows that Genie interpreted the wide contract less reliably.
+
+## Why did you build facts and dimensions if Genie queries only the view?
+
+> The facts separate each measure by the grain where it belongs, which makes validation safer. The view then hides that complexity and gives Genie one simple interface.
+
+## Does 100 percent mean it can answer every CSM question?
+
+> No. It means 18 of 18 runs were correct for six verified booking-scope patterns. Other domains still need their own tests.
+
+## Was production changed?
+
+> No. Production stayed read-only and unchanged. All new objects and Genie spaces were isolated POC assets.
+
+## Why was the focused view slower?
+
+> We observed the difference, but this pilot did not isolate the cause. A separate performance test is needed before attributing it to the view, warehouse, cache, or query expansion.
+
+## Were both agents configured exactly the same?
+
+> They used the same warehouse, questions, and intended instruction contract. The API did not expose every setting for independent verification, so I documented that limitation.
+
+## Why did the reported score change during the audit?
+
+> The first scoring contract expected extra columns for V5 and mixed naming compliance with business correctness. I corrected the scoring against the original stored runs. I did not ask the agents new questions.
+
+## Are the cancellation and rejection thresholds now data-driven?
+
+> No. V1 keeps the existing stored flags exactly as they are. Historical threshold calibration is separate work.
+
+## Is the swap recommender ready?
+
+> No. This V1 deliberately refuses executable swap requests. Swap scoring needs approved matching rules, reliable point-in-time history, outcome labels, and a separate controlled validation.
+
+## What should happen next?
+
+> Review this Booking Scope evidence first. If the approach is accepted, choose one additional domain, define its grain and verified business questions, build one narrow view, and repeat the same benchmark.
+
+---
+
+# Things not to claim
+
+- Do not say the wide table is bad just because it has many columns.
+- Do not say the wide table contains incorrect data.
+- Do not say production was optimized or changed.
+- Do not say the personal schema is private.
+- Do not say every Gold column was validated.
+- Do not say the full fact-and-dimension architecture is proven.
+- Do not say the Booking Scope view is faster.
+- Do not say its SQL is always simpler.
+- Do not describe the stored risk flags as probabilities.
+- Do not say the current thresholds were historically calibrated.
+- Do not say swap recommendations or reservable capacity are ready.
+- Do not quote the earlier `16.7% vs 83.3%` or `16.7% vs 94.4%` results as the final business score.
+
+## Safe wording
+
+> For the six booking-scope patterns tested, the focused semantic view improved Genie correctness and repeatability. Production remained unchanged, latency did not improve, and other CSM and CSAL domains still require separate validation.
