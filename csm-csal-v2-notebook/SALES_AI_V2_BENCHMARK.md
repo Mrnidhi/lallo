@@ -21,19 +21,17 @@ Do not use **Run all**. If a cell fails, stop at that cell. Do not delete an evi
 
 The client now comes from the Databricks SDK already installed in the notebook. No additional package is needed. Retries are disabled, each question starts fresh, and failed requests retain their error type, failing step and elapsed time. One function records actual answers. The existing data checks, reference calculations and numeric scoring rules remain in place.
 
-This is a **new client experiment**, not a recovery of the earlier uncertain request. It saves to `v2-benchmark-client-evidence.json` in your personal workspace. Leave `v2-benchmark-simple-evidence.json` and `v2-benchmark-evidence.json` unchanged. Earlier failures remain part of the project history, not evidence of successful runs.
+This is a **new client experiment**, not a recovery of the earlier uncertain request. It uses label `sales_ai_v2_first12_client_02` and saves to `v2-benchmark-client2-evidence.json` in your personal workspace. Leave `v2-benchmark-client-evidence.json`, `v2-benchmark-simple-evidence.json` and `v2-benchmark-evidence.json` unchanged. Earlier failures remain part of the project history, not evidence of successful runs.
 
 Use the existing Databricks SDK, OpenAI and HTTPX libraries. Cell 8 checks that the installed SDK helper, Responses support and no-redirect behavior are available. This helper is deprecated in newer SDK documentation; we are using it as a contained compatibility option for this POC, not a recommendation for a new production integration. No separate API key is needed.
 
 ## Recovering from the earlier package setup
 
-Imports initially failed because `databricks_openai` was missing. Installing `databricks-openai==0.17.1` with `openai==2.26.0` completed, but Databricks reported that `databricks-connect` changed from `18.0.9` to `17.0.10`. That is a core runtime compatibility warning, not a successful benchmark check.
+The original notebook environment has been restored and verified: Databricks Connect `18.0.9`, OpenAI `2.14.0`, Databricks SDK `0.67.0` and HTTPX `0.28.1`. Do not run the retired installation blocks or add packages.
 
-Execution stopped before Python restart or any further benchmark cell. The change is notebook-scoped. Production objects and saved evidence were not modified.
+Cells 1–6 passed. Cell 8 confirmed both connections are ready, cells 9–10 loaded, and all 40 synthetic scorer checks in cell 11 passed. No agent question has been sent in this new experiment.
 
-Do not repeat that installation, force dependency resolution or delete evidence. The agreed recovery is to disable only the temporary installation cell, remove its two added dependencies from this personal notebook's Configuration panel, and apply the original base environment. Restarting Python alone does not undo installed packages. Keep all saved evidence files.
-
-The original observed versions were `databricks-connect 18.0.9` and `openai 2.14.0`. After recovery, run the updated Imports cell and check its printed versions before continuing. Cells 1, 2 and 8 have changed; replace those three blocks in the existing notebook, then rerun preparation individually. The experiment name and evidence path are unchanged. If an existing checkpoint conflicts with the new code fingerprint, stop and inspect it; do not overwrite it.
+Next, transfer the new settings and checkpoint blocks (cells 2 and 7) and create the separate results file. If preparation is stale, rerun the required preparation cells. If a checkpoint already exists at the new path and conflicts with the current setup, stop and inspect it; do not overwrite it. Production objects and prior evidence remain unchanged.
 
 References: [Databricks notebook-scoped libraries](https://docs.databricks.com/aws/en/libraries/notebooks-python-libraries) and [Databricks OpenAI package](https://pypi.org/project/databricks-openai/0.17.1/).
 
@@ -121,7 +119,7 @@ QUESTION_IDS = ["C01", "C02", "C03", "C04", "C05", "C06", "C07", "D01", "D04", "
 REPETITIONS = 3
 WORDING_VERSION = "v2_question_wording_2"
 CODE_VERSION = "v2_readable_client_2"
-EXPERIMENT_LABEL = "sales_ai_v2_first12_client_01"
+EXPERIMENT_LABEL = "sales_ai_v2_first12_client_02"
 
 # Leave these empty to select usable examples within each source.
 # A matching name in two domains is not proof of a shared identity.
@@ -132,8 +130,8 @@ REQUEST_CONTRACT = {"A": "input", "B": "input"}
 MAX_TRIALS_THIS_RUN = 2  # One question through A and B per run of cell 12.
 HTTP_TIMEOUT_SECONDS = 180
 # This is a separate client comparison, not a retry of the old uncertain request.
-# Keep both previous evidence files unchanged; do not copy their trials here.
-EVIDENCE_PATH = Path("/Workspace/Users/jayarsr@oocl.com/Sales AI EDA/v2-benchmark-client-evidence.json")
+# Keep all previous evidence files unchanged; do not copy their trials here.
+EVIDENCE_PATH = Path("/Workspace/Users/jayarsr@oocl.com/Sales AI EDA/v2-benchmark-client2-evidence.json")
 
 print("Plan: 12 questions × 2 supervisors × 3 repetitions = 72 trials.")
 print("No enrichment, table rebuilds, new agents or production writes are included.")
@@ -865,7 +863,7 @@ assert len(PLAN) == len({item["trial_id"] for item in PLAN}) == len(QUESTION_IDS
 
 def validate_evidence_path():
     expected_parent = Path("/Workspace/Users/" + PERSONAL_OWNER + "/Sales AI EDA")
-    assert EVIDENCE_PATH.parent == expected_parent and EVIDENCE_PATH.name == "v2-benchmark-client-evidence.json"
+    assert EVIDENCE_PATH.parent == expected_parent and EVIDENCE_PATH.name == "v2-benchmark-client2-evidence.json"
     assert expected_parent.is_dir(), "Personal workspace files are unavailable. Stop; do not use another destination."
     assert not EVIDENCE_PATH.is_symlink(), "Unexpected evidence-file symlink."
 

@@ -27,13 +27,13 @@ The source data is not one common historical snapshot: CSM is frozen, while shar
 
 Revision `v2_readable_client_2` uses the installed SDK's `WorkspaceClient.serving_endpoints.get_open_ai_client` helper: a 180-second timeout, zero automatic retries and a check that redirects remain disabled. It needs no additional `DatabricksOpenAI` package or installation. The helper is deprecated; this is a contained proof of concept using the existing runtime, not a long-term production recommendation.
 
-The experiment label remains `sales_ai_v2_first12_client_01`, using `v2-benchmark-client-evidence.json`. Both older evidence files (`v2-benchmark-simple-evidence.json` and `v2-benchmark-evidence.json`) stay untouched, including uncertain requests. Preserve any checkpoint mismatch; do not rewrite saved settings to fit this revision. The client experiment does not resume or reconcile an old API call.
+The new experiment label is `sales_ai_v2_first12_client_02`, using `v2-benchmark-client2-evidence.json`. All three older evidence files (`v2-benchmark-client-evidence.json`, `v2-benchmark-simple-evidence.json` and `v2-benchmark-evidence.json`) stay untouched, including uncertain requests. Preserve any checkpoint mismatch; do not rewrite saved settings to fit this revision. The client experiment does not resume or reconcile an old API call.
 
 ## Where we stand
 
-The user reports good answers for all 41 questions in a manual UI test. Both endpoint metadata GET checks succeeded, and earlier reference preparation passed. These observations are useful, but there are no verified, scored V2 benchmark results yet.
+The user reports good answers for all 41 questions in a manual UI test. In the notebook, cells 1–6 passed, cell 8 confirmed both connections are ready, cells 9–10 loaded, and cell 11 passed all 40 synthetic scorer checks. No question has been sent in this new experiment, and there are no verified, scored V2 benchmark results yet.
 
-The earlier optional installation downgraded Databricks Connect from 18.0.9 to 17.0.10. With the user's approval, the two added notebook dependencies were removed and the personal environment was reset. Restored package versions still need verification; do not repeat the old installation blocks.
+The original environment is restored and verified: Databricks Connect `18.0.9`, OpenAI `2.14.0`, Databricks SDK `0.67.0` and HTTPX `0.28.1`. Do not run the retired installation blocks or add packages.
 
 All 41 local code checks passed. No live inference success has been verified. The original API failure's cause remains unconfirmed, and this revision is not a guaranteed fix. Metadata success does not prove inference works; reference checks do not certify business policy.
 
@@ -41,8 +41,8 @@ All 41 local code checks passed. No live inference success has been verified. Th
 
 All **41 questions** remain the target.
 
-1. Verify the restored environment versions first. Then paste the 14 code blocks into the matching cells and run cells 1–6 individually, stopping on errors.
-2. Save the personal checkpoint in cell 7, check metadata and prepare the client in cell 8, then load the runner/scorer and run synthetic tests in cells 9–11.
+1. Transfer the new settings and checkpoint blocks (cells 2 and 7). Preserve the previous results files.
+2. Run cell 7 to save the separate experiment. If preparation is stale, refresh the required cells. The existing runtime, connections and scorer have already passed their checks.
 3. Run cell 12 for one A/B pair by default. In cell 13, inspect `show_trial` and record actual rows with `record_answer`; no mandatory approval form is needed.
 4. Use cell 14 to inspect the evidence, then continue the same experiment one pair at a time. The prepared questions are **1–7, 15, 18, 20, 23 and 27**: 12 questions, three repetitions per agent, **72 planned trials** including the first pair.
 5. Add execution and scoring support for the remaining 29 in the same notebook. Question 30 needs two-message handling. Keep clarification, limitation and pending outcomes separate from numerical accuracy.
