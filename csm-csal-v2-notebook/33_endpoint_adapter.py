@@ -116,8 +116,9 @@ def prepare_invocation(arm, prompt):
     endpoint = ENDPOINTS[arm]
     assert endpoint == MANIFEST["endpoints"][arm], "Endpoint differs from the frozen experiment."
     assert endpoint in {"mas-3beadca0-endpoint", "mas-6b7af80b-endpoint"}
-    # A new request contains only this user message, never an earlier conversation.
-    payload = {field: [{"role": "user", "content": prompt}], "stream": False}
+    # Use the minimal input shown in the endpoint UI example. Do not add an
+    # unverified stream flag or reuse conversation/context values from that example.
+    payload = {field: [{"role": "user", "content": prompt}]}
     body = stable_json(payload).encode("utf-8")
     url = host + "/serving-endpoints/" + endpoint + "/invocations"
     Request(url, data=body, method="POST")  # Constructor validation only.
