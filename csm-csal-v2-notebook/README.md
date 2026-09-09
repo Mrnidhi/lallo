@@ -8,6 +8,8 @@ Copilot Chat is a code helper: it suggests changes and explains outputs. You pas
 
 ## What changed
 
+**Next connection check:** copy [check_agent_connection.py](troubleshooting/check_agent_connection.py) into a temporary Python cell at the bottom of the existing notebook. Run only that cell and share its two output lines. It compares SDK and direct HTTP reads of Agent A's connection metadata, using the existing notebook session. It does not send a business question or change tables, settings or saved evidence. Do not rerun cell 12 or use Run all, even if both checks say `OK`. Successful metadata reads do not prove the original agent request worked; SDK retries also mean these timings are not a speed benchmark.
+
 **If cell 12 says “Request completion is uncertain”:** do not rerun it or use Run all. Copy [check_cell_12.py](troubleshooting/check_cell_12.py) into a temporary Python cell at the bottom of the existing notebook. Run only that cell and share its status output. It reads the checkpoint without sending a request, changing evidence or printing answer rows. This diagnostic is not a fix or a replacement for cell 12.
 
 The updated diagnostic also prints the saved timeout setting and UTC start/end times. Replace the earlier diagnostic cell with this version. These timestamps help check the waiting interval; they are not SQL execution times.
