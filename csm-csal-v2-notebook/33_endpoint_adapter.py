@@ -26,14 +26,53 @@ def endpoint_identity(arm):
             "entities": safe_entities, "traffic_config": config.get("traffic_config")}
 
 
+def schema_unavailable_without_served_entity(error):
+    # Match this one SDK response only. Other missing resources and all
+    # permission/authentication failures must still stop the inspection.
+    sdk_not_found = any(
+        cls.__name__ == "NotFound" and (
+            cls.__module__ == "databricks.sdk.errors"
+            or cls.__module__.startswith("databricks.sdk.errors.")
+        )
+        for cls in type(error).__mro__
+    )
+    messages = [getattr(error, "message", None), str(error)]
+    if error.args:
+        messages.append(error.args[0])
+    expected_message = "No entity is being served by the endpoint."
+    return sdk_not_found and any(
+        isinstance(message, str) and message.strip() == expected_message
+        for message in messages
+    )
+
+
 ENDPOINT_IDENTITIES = {arm: endpoint_identity(arm) for arm in ENDPOINTS}
 ENDPOINT_SCHEMAS = {}
+ENDPOINT_SCHEMA_STATUS = {}
 schema_reader = getattr(CLIENT.serving_endpoints, "get_open_api", None)
 if callable(schema_reader):
     for arm in ENDPOINTS:
-        ENDPOINT_SCHEMAS[arm] = as_dict(schema_reader(name=ENDPOINTS[arm]))
-        print(arm, "OpenAPI available; schema fingerprint:", fingerprint(ENDPOINT_SCHEMAS[arm]))
+        try:
+            ENDPOINT_SCHEMAS[arm] = as_dict(schema_reader(name=ENDPOINTS[arm]))
+        except Exception as error:
+            if not schema_unavailable_without_served_entity(error):
+                raise
+            ENDPOINT_SCHEMA_STATUS[arm] = {
+                "status": "UNAVAILABLE_NO_SERVED_ENTITY",
+                "review_required": True,
+                "detail": "The schema API reported no served entity; the request format is not verified.",
+            }
+            REQUEST_SCHEMA_REVIEWED[arm] = False
+            REQUEST_CONTRACT[arm] = None
+            ENABLE_AGENT_RUNS = False
+            print(arm, "Schema unavailable: the schema API reported no served entity.")
+            print("Agent requests remain disabled. Review that endpoint's existing UI query example, including the complete request body.")
+            continue
+        schema_hash = fingerprint(ENDPOINT_SCHEMAS[arm])
+        ENDPOINT_SCHEMA_STATUS[arm] = {"status": "AVAILABLE", "schema_sha256": schema_hash}
+        print(arm, "OpenAPI available; schema fingerprint:", schema_hash)
 else:
+    ENDPOINT_SCHEMA_STATUS = {arm: {"status": "SDK_METHOD_UNAVAILABLE", "review_required": True} for arm in ENDPOINTS}
     print("This installed SDK does not expose get_open_api. Inspect the endpoint's existing query example in the UI.")
     print("Leave REQUEST_SCHEMA_REVIEWED false until both accepted request formats are confirmed.")
 
@@ -112,4 +151,5 @@ def invoke_once(arm, prompt, prepared=None):
                 "response_id": result.get("id") if isinstance(result, dict) else None}
 
 
-print("No inference sent. Check show_request_schema('A') and show_request_schema('B') before editing the request gates.")
+print("No inference sent. Review ENDPOINT_SCHEMA_STATUS first.")
+print("Use show_request_schema only for available schemas. For unavailable schemas, review the existing endpoint UI query example before editing the request gates.")
