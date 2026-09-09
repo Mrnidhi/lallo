@@ -2,6 +2,8 @@
 
 Use the existing personal notebook **09-sales-ai-v2-benchmark**. Each Python file is one cell. File numbers 26–39 become notebook cells 1–14. Keep **08-sales-ai-v2-master-poc** unchanged.
 
+For the plain-English goal, progress and remaining work, read [Project summary](PROJECT_SUMMARY.md).
+
 **Cell 7 stopped with an assertion?** Start with [Cell 7: find the missing review](CHECK_CELL_7.md). Its optional diagnostic goes in a temporary cell at the end. It does not replace a numbered cell or grant approvals.
 
 ## Paste order
