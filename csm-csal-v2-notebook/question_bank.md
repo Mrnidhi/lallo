@@ -4,7 +4,7 @@
 
 This is a sharing copy of the existing 41-question bank. The numbered questions and test IDs are unchanged. The detailed notes below retain the original design context; they are not current test results.
 
-The first 12 reference calculations and their test records have been prepared. Saved main-agent instruction text and visible specialist mappings were checked in the earlier session. The current setup still needs its final checks, and no V2 benchmark result is verified. See [Project summary](PROJECT_SUMMARY.md) and [the manual run guide](README.md) for the current handoff.
+The first 12 reference calculations were cross-checked in the earlier session. Saved main-agent instruction text and visible specialist mappings were also checked then. The simplified runner has passed local tests but has not been run in Databricks. No V2 benchmark result is verified. See [Project summary](PROJECT_SUMMARY.md) and [the manual run guide](README.md) for the current handoff.
 
 **For the first benchmark, use the notebook's `PROMPTS`, not just the numbered sentences below.** Cell 6 adds the fixed sorting, rounding and missing-value instructions from [31_questions_and_review.py](31_questions_and_review.py). Actual customer, agreement and representative values stay in the office notebook. Do not give either tested agent the reference answers or reference SQL.
 
@@ -677,7 +677,7 @@ The shared CSM specialist instructions restrict both arms to the booking-summary
 5. Compare full rows and measures, not just row counts or PASS banners. A hash is useful only after its selected columns, ordering, rounding and NULL encoding are correct.
 6. Mark an item **VERIFIED** only with reviewer, source versions, approved SQL/result artifact and verification date. Until then it stays DRAFT and is excluded from headline accuracy.
 
-No SQL is supplied in this file because generating or executing ground truth is a separate approval step.
+Reference SQL is kept in the notebook, not in this question bank. The first 12 questions have prepared calculations; the remaining 29 still need their appropriate reference checks or behaviour criteria before testing.
 
 ### Record these measures
 

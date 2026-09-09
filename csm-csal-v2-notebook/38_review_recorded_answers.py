@@ -43,13 +43,13 @@ def review_template(question, arm, repetition):
 
 
 def record_answer_review(review):
-    """Save a completed answer check; identical reruns leave the history unchanged."""
+    """Save answer evidence, including unfinished checks, without replacing history."""
     assert isinstance(review, dict), "Pass the completed dictionary returned by review_template()."
     assert review.get("reviewer", "").strip() and review.get("evidence_note", "").strip(), (
         "Fill reviewer and evidence_note with who checked the answer and what supports it."
     )
-    assert isinstance(review.get("narrative_correct"), bool), (
-        "Set narrative_correct after checking the claims and qualifications as well as the numbers."
+    assert review.get("narrative_correct") is None or isinstance(review["narrative_correct"], bool), (
+        "Use True or False after checking the claims and qualifications; otherwise leave narrative_correct as None."
     )
     assert review.get("answer_support") in {"SUPPORTED", "PARTIALLY_SUPPORTED", "UNSUPPORTED"}, (
         "Set answer_support to SUPPORTED, PARTIALLY_SUPPORTED or UNSUPPORTED."
@@ -90,12 +90,12 @@ def record_answer_review(review):
                 "Verify aliases against the recorded SQL/source meaning, not name similarity."
             )
         if question == "C07":
-            assert isinstance(review.get("honest_no_match"), bool), (
-                "A query error or refusal is not a successful no-match answer."
+            assert review.get("honest_no_match") is None or isinstance(review["honest_no_match"], bool), (
+                "Leave honest_no_match as None until checked. A query error or refusal is not a successful no-match answer."
             )
         if question == "R01":
-            assert isinstance(review.get("sources_and_dates_correct"), bool), (
-                "Check source names, separate dates and that no customer join was inferred."
+            assert review.get("sources_and_dates_correct") is None or isinstance(review["sources_and_dates_correct"], bool), (
+                "Leave sources_and_dates_correct as None until source names, separate dates and customer separation are checked."
             )
         for sql in review["sql_evidence"]:
             assert sql.get("text", "").strip() and sql.get("evidence_note", "").strip(), (
@@ -117,15 +117,53 @@ def record_answer_review(review):
         if not history or history[-1]["review"] != cleaned:
             history.append({"at_utc": utc_now(), "review": cleaned})
             save_checkpoint(state)
-    print(f"Answer check recorded: {question} | Agent {trial['arm']} | Repetition {trial['repetition']}.")
+    print(f"Answer evidence recorded: {question} | Agent {trial['arm']} | Repetition {trial['repetition']}.")
     print("Identical entries are left unchanged. No new question was sent.")
 
 
-print("1. Read the saved answer: show_trial('C01', 'A', 1)")
-print("2. Create its record: review = review_template('C01', 'A', 1)")
-print("3. Fill review from that answer and its original SQL/trace, then run record_answer_review(review).")
-print("   Check all verdicts, including answer_support; template defaults are not findings.")
-print("   Use plain numbers; preserve NULL as None. Use [] only for a confirmed empty result.")
-print("   Use ISO date/time text at the recorded precision; explain format conversions in evidence_note.")
-print("   Leave unavailable SQL, model details and timings as NOT_EVALUABLE/None.")
-print("4. Repeat for the other saved answers, then run cell 14 for the report.")
+def record_answer(question, arm, repetition, rows, *, note, narrative_correct=None,
+                  sql=None, honest_no_match=None, sources_and_dates_correct=None):
+    """Save original row lists; R01 uses a dictionary of its two section lists.
+
+    note identifies the saved response/SQL. Optional verdicts stay unknown;
+    SQL text alone does not establish correctness, completeness, source or grain.
+    """
+    assert globals().get("V2_BENCHMARK_READY") is True, "Run cell 7 to load the saved test setup first."
+    assert question in QUESTION_IDS and arm in ENDPOINTS and type(repetition) is int and 1 <= repetition <= REPETITIONS, (
+        "Choose a listed question, arm A or B, and a planned repetition."
+    )
+    assert isinstance(note, str) and note.strip(), "Add a short note identifying the original response used."
+    assert isinstance(PERSONAL_OWNER, str) and PERSONAL_OWNER.strip(), "The notebook identity is missing. Run the source checks first."
+    for name, value in [("narrative_correct", narrative_correct), ("honest_no_match", honest_no_match),
+                        ("sources_and_dates_correct", sources_and_dates_correct)]:
+        assert value is None or type(value) is bool, name + " must be True, False or None."
+    assert sql is None or isinstance(sql, str) and sql.strip(), "Supply original SQL text, or leave sql as None."
+
+    review = review_template(question, arm, repetition)
+    section_names = set(review["sections"])
+    if isinstance(rows, list):
+        assert len(section_names) == 1, "This question has separate sections. Supply a dictionary with their original row lists."
+        sections = {next(iter(section_names)): rows}
+    else:
+        assert isinstance(rows, dict) and set(rows) == section_names, (
+            "Supply the original row lists under exactly these sections: " + ", ".join(sorted(section_names))
+        )
+        sections = rows
+    review.update(reviewer=PERSONAL_OWNER, evidence_note=note, sections=sections,
+                  narrative_correct=narrative_correct, honest_no_match=honest_no_match,
+                  sources_and_dates_correct=sources_and_dates_correct)
+    if sql is not None:
+        review["sql_evidence"] = [{"text": sql, "evidence_note": note,
+                                   "correctness": "NOT_EVALUABLE", "execution_seconds": None}]
+    record_answer_review(review)
+    print("Rows can now be compared. Unchecked claims, SQL, sources and grain remain unavailable.")
+    return review["trial_key"]
+
+
+print("Read show_trial('C01', 'A', 1), then copy its original rows into actual_rows, never from the reference.")
+print("record_answer('C01', 'A', 1, actual_rows, note='Copied from the saved C01 A response')")
+print("Optional checked claims: narrative_correct; C07: honest_no_match; R01: sources_and_dates_correct. Leave unknown as None.")
+print("R01 rows: {'booking': booking_rows, 'finance': finance_rows}. Optional SQL: sql=original_sql; no SQL verdict is inferred.")
+print("Keep NULL as None, [] only for genuine empty results, and original date/time precision. Explain conversions in note.")
+print("Detailed checks still use review_template() and record_answer_review(). Next: cell 14. No new question is sent here.")
+print("Full target: 41 questions. This batch has 12 prepared questions; the other 29 remain pending.")

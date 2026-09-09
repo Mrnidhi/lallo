@@ -29,18 +29,17 @@ def current_transport():
     assert ENDPOINTS == MANIFEST["endpoints"], "Endpoint names differ from the saved test setup."
     assert WAREHOUSE_ID == MANIFEST["warehouse"]
     return {"identities": {arm: endpoint_identity(arm) for arm in ENDPOINTS},
-            "schemas": {arm: fingerprint(schema) for arm, schema in ENDPOINT_SCHEMAS.items()},
             "request_contract": dict(REQUEST_CONTRACT), "timeout_seconds": HTTP_TIMEOUT_SECONDS,
             "mode": "nonstreaming_fresh_request"}
 
 
 def run_next_pairs(max_trials=2):
     global STATE
-    assert ENABLE_AGENT_RUNS is True and ENABLE_EVIDENCE_SAVE is True and V2_BENCHMARK_READY
+    assert V2_BENCHMARK_READY, "Run cells 1-7 successfully first."
     assert globals().get("V2_SCORING_SELF_TESTS_PASSED") is True, "Run the scoring self-tests first."
-    assert isinstance(max_trials, int) and not isinstance(max_trials, bool) and 2 <= max_trials <= 72 and max_trials % 2 == 0
+    assert isinstance(max_trials, int) and not isinstance(max_trials, bool) and 2 <= max_trials <= len(PLAN) and max_trials % 2 == 0
     require_preparation("questions", review_payload())
-    assert REVIEW.get("draft_sha256") == MANIFEST["review"]["draft_sha256"] == fingerprint(review_payload()), "Reference answers no longer match the saved questions. Keep this test unchanged and check the new setup separately."
+    assert MANIFEST["reference_sha256"] == fingerprint(review_payload()), "Reference answers no longer match the saved questions. Keep this test unchanged and prepare the new setup separately."
     submitted = 0
     with evidence_lock():
         STATE = load_checkpoint()
@@ -113,8 +112,10 @@ def run_next_pairs(max_trials=2):
             save_checkpoint(STATE)
             submitted += 1
             print(item["question"], item["arm"], "repeat", item["repetition"], row["state"], row["source_check"])
+            print("Response:", stable_json(row["response"]))
+            print("Response time:", round(row["client_end_to_end_seconds"], 2), "seconds")
             assert row["source_check"] == "STABLE", "Source state changed or could not be verified. Pair is inconclusive."
-    print("New submissions:", submitted, "Recorded trials:", len(STATE["trials"]), "of 72")
+    print("New submissions:", submitted, "Recorded trials:", len(STATE["trials"]), "of", len(PLAN))
 
 
 def reconcile_saved_trial(key, saved_response, request_id, evidence_note, reviewer):

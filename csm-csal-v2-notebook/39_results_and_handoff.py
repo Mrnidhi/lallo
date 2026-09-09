@@ -16,11 +16,10 @@ def sql_counts(text):
 def score_trial(trial, reference):
     """Combine the row comparison with the recorded answer and source checks."""
     if trial is None:
-        return {"status": "PENDING", "reason": "Not submitted."}
-    if trial.get("source_check") != "STABLE":
-        return {"status": "INCONCLUSIVE", "reason": "The source state during this trial is not verified stable."}
+        return {"status": "PENDING", "row_correctness": "NOT_EVALUABLE", "reason": "Not submitted."}
     if trial["state"] != "RECEIVED" or not trial.get("reviews"):
-        return {"status": "NOT_EVALUABLE", "reason": "Check and record the original response in cell 13 first."}
+        status = "NOT_EVALUABLE" if trial.get("source_check") == "STABLE" else "INCONCLUSIVE"
+        return {"status": status, "row_correctness": "NOT_EVALUABLE", "reason": "Check and record the original response in cell 13 first."}
     review = trial["reviews"][-1]["review"]
     assert review["response_fingerprint"] == trial["response_fingerprint"] == fingerprint(trial["response"])
     question = trial["question"]
@@ -29,16 +28,22 @@ def score_trial(trial, reference):
         scores[section] = score_section(reference["expected"][question][section], review["sections"][section],
                                         contract["columns"], contract["precision"], review["aliases"][section], ordered=True)
     numeric_status = [result["status"] for result in scores.values()]
-    if "NOT_EVALUABLE" in numeric_status:
-        status = "NOT_EVALUABLE"
-    elif review["answer_support"] != "SUPPORTED":
+    row_correctness = ("NOT_EVALUABLE" if "NOT_EVALUABLE" in numeric_status else
+                       "INCORRECT" if "INCORRECT" in numeric_status else "CORRECT")
+    if review["answer_support"] != "SUPPORTED":
         status = review["answer_support"]  # Never counted as a correct supported answer.
-    elif "INCORRECT" in numeric_status or not review["narrative_correct"]:
+    elif row_correctness == "INCORRECT" or review.get("narrative_correct") is False:
         status = "INCORRECT"
-    elif question == "C07" and review["honest_no_match"] is not True:
+    elif question == "C07" and review.get("honest_no_match") is False:
         status = "INCORRECT"
-    elif question == "R01" and review["sources_and_dates_correct"] is not True:
+    elif question == "R01" and review.get("sources_and_dates_correct") is False:
         status = "INCORRECT"
+    elif row_correctness != "CORRECT" or review.get("narrative_correct") is not True:
+        status = "NOT_EVALUABLE"
+    elif question == "C07" and review.get("honest_no_match") is not True:
+        status = "NOT_EVALUABLE"
+    elif question == "R01" and review.get("sources_and_dates_correct") is not True:
+        status = "NOT_EVALUABLE"
     else:
         status = "CORRECT"
     signature = None
@@ -46,9 +51,10 @@ def score_trial(trial, reference):
         signature = fingerprint({section: result["actual_hash"] for section, result in scores.items()})
     sql_evidence = review["sql_evidence"]
     business_status = status
-    if review["source_isolation"] == "INCORRECT":
+    if trial.get("source_check") != "STABLE" or review["source_isolation"] == "INCORRECT":
         status = "INCONCLUSIVE"  # Correct numbers from an unassigned source are not valid architecture evidence.
-    return {"status": status, "business_status": business_status, "sections": scores, "answer_signature": signature,
+    return {"status": status, "business_status": business_status, "row_correctness": row_correctness,
+            "sections": scores, "answer_signature": signature,
             "grain_correctness": review["grain_correctness"], "source_isolation": review["source_isolation"],
             "sql_correctness": [entry["correctness"] for entry in sql_evidence] or ["NOT_EVALUABLE"],
             "captured_sql_statement_count": len(sql_evidence),
@@ -80,6 +86,7 @@ def build_report(state):
                      if state["trials"].get(item["trial_id"], {}).get("state") == "RECEIVED"]
         latencies = [value for value in latencies if valid_seconds(value)]
         evaluated = sum(counts[key] for key in ["CORRECT", "INCORRECT", "PARTIALLY_SUPPORTED", "UNSUPPORTED"])
+        row_counts = Counter(scores[item["trial_id"]].get("row_correctness", "NOT_EVALUABLE") for item in comparison_items)
         captured_sql = [entry for item in comparison_items for entry in scores[item["trial_id"]].get("sql_complexity_heuristics", [])]
         sql_metrics = {name: statistics.median([entry[name] for entry in captured_sql]) if captured_sql else None
                        for name in ["characters", "lines", "join_tokens", "cte_candidates", "function_like_tokens"]}
@@ -104,6 +111,8 @@ def build_report(state):
                 consistency[question] = "STABLE" if len(set(hashes)) == 1 else "UNSTABLE"
         arms[arm] = {"planned": len(items), "status_counts": dict(counts), "evaluated": evaluated,
                      "correctness_pct_of_evaluated": round(100 * counts["CORRECT"] / evaluated, 1) if evaluated else None,
+                     "row_correctness_counts": dict(row_counts),
+                     "rows_evaluated": row_counts["CORRECT"] + row_counts["INCORRECT"],
                      "median_client_end_to_end_seconds": statistics.median(latencies) if latencies else None,
                      "timed_trials": len(latencies), "consistency": consistency,
                      "submission_states": dict(states), "grain_verdicts": dict(grain_verdicts), "sql_verdicts": dict(sql_verdicts),
@@ -135,6 +144,8 @@ def build_report(state):
         and all(valid_seconds(value) for value in scores[item["trial_id"]].get("sql_execution_seconds", []))
         for item in state["plan"])
     return {"experiment_id": state["experiment_id"], "generated_at_utc": utc_now(), "arms": arms,
+            "question_scope": {"full_target": 41, "prepared_in_this_batch": len(QUESTION_IDS),
+                               "remaining_pending": max(0, 41 - len(QUESTION_IDS))},
             "trial_scores": scores, "first12_evidence_complete": handoff_ready,
             "first12_answers_reviewed": answers_reviewed, "assigned_sources_verified_for_all_trials": isolation_verified,
             "first12_answer_review_handoff_ready": answer_handoff_ready,
@@ -168,26 +179,40 @@ def show_report():
     assert V2_SCORING_SELF_TESTS_PASSED, "Run the scorer checks in cell 11 before reporting."
     state = load_checkpoint()
     report = build_report(state)
-    print("Sales AI V2 | First 12 questions")
+    print("Sales AI V2 | Saved A/B comparison")
+    print("Agreement with cross-checked reference calculations, not business-policy sign-off.")
+    scope = report["question_scope"]
+    print(f"Full target: {scope['full_target']} questions | {scope['prepared_in_this_batch']} prepared in this batch | {scope['remaining_pending']} still pending.")
     for arm, title in [("A", "Wide baseline"), ("B", "Booking-scope view")]:
         result = report["arms"][arm]
         print(f"\nAgent {arm} | {title}")
-        for name, value in result.items():
-            print(f"  {name.replace('_', ' ')}: {stable_json(value)}")
-    print("\nQuestion | A: correct / 3 | B: correct / 3")
+        correct = result["status_counts"].get("CORRECT", 0)
+        accuracy = result["correctness_pct_of_evaluated"]
+        accuracy_text = "not yet available" if accuracy is None else f"{accuracy:.1f}%"
+        print(f"Answers: {accuracy_text} correct ({correct}/{result['evaluated']} evaluated; {result['evaluated']}/{result['planned']} planned runs evaluated).")
+        received = result["submission_states"].get("RECEIVED", 0)
+        matching_rows = result["row_correctness_counts"].get("CORRECT", 0)
+        print(f"Original responses: {received}/{result['planned']} | Rows match: {matching_rows}/{result['rows_evaluated']} row comparisons.")
+        latency = result["median_client_end_to_end_seconds"]
+        latency_text = "unavailable" if latency is None else f"{latency:.2f} s"
+        print(f"Median response time: {latency_text} ({result['timed_trials']} timed runs).")
+    print("\nPer question: responses received / answers evaluated / correct (3 planned per agent)")
+    print("Question | A       | B")
     for question in QUESTION_IDS:
-        counts = [sum(report["trial_scores"][trial_id(question, arm, repetition)]["status"] == "CORRECT" for repetition in [1, 2, 3]) for arm in ["A", "B"]]
-        print(f"{question:<8} | {counts[0]:^14} | {counts[1]:^14}")
-    print("\nEvidence complete:", report["first12_evidence_complete"])
-    print("Answer checks complete:", report["first12_answers_reviewed"])
-    print("Grain checks complete:", report["first12_grain_review_complete"])
-    print("Complete SQL capture checked:", report["first12_sql_review_complete"])
-    print("Assigned-source usage verified for every trial:", report["assigned_sources_verified_for_all_trials"])
-    print(report["timing_note"])
-    print(report["evidence_note"])
-    print(report["sql_metrics_note"])
-    print("Interpret A/B differences only alongside correctness, source isolation and the recorded limitations.")
-    print("Full question bank, enrichment, receiver reliability and threshold calibration remain outside this batch.")
+        progress = []
+        for arm in ["A", "B"]:
+            keys = [trial_id(question, arm, repetition) for repetition in [1, 2, 3]]
+            received = sum(state["trials"].get(key, {}).get("state") == "RECEIVED" for key in keys)
+            statuses = [report["trial_scores"][key]["status"] for key in keys]
+            evaluated = sum(status in {"CORRECT", "INCORRECT", "PARTIALLY_SUPPORTED", "UNSUPPORTED"} for status in statuses)
+            progress.append(f"{received}/{evaluated}/{statuses.count('CORRECT')}")
+        print(f"{question:<8} | {progress[0]:<7} | {progress[1]}")
+    print("\nComplete comparison evidence:", report["first12_evidence_complete"])
+    print("Matching rows alone do not verify claims, source usage, grain or complete SQL capture.")
+    print("Agent instructions and warehouse use are not freshly verified here; differences do not prove architecture causality.")
+    print("Response time is client latency, not SQL duration; missing measurements remain unavailable.")
+    print("Uncertain/source-drift pairs are excluded. Full details and limitations are in the saved report.")
+    print("Enrichment, threshold changes and swap scoring remain outside this batch.")
     with evidence_lock():
         latest = load_checkpoint()
         assert fingerprint(latest["trials"]) == fingerprint(state["trials"]), "Saved answer evidence changed while reporting. Rerun cell 14."
@@ -196,14 +221,20 @@ def show_report():
     return report
 
 
-if not ENABLE_EVIDENCE_SAVE:
-    print("Report not loaded: ENABLE_EVIDENCE_SAVE is False. The saved file was not checked.")
-    print("Once the setup checks are complete, set ENABLE_EVIDENCE_SAVE = True in a separate cell, then run cell 7.")
-    print("Use cell 12 to run the planned pairs and cell 13 to check saved answers, then rerun cell 14.")
-elif EVIDENCE_PATH.exists():
-    V2_REPORT = show_report()
+if globals().get("V2_BENCHMARK_READY") is not True or not all(
+    callable(globals().get(name)) for name in ("load_checkpoint", "evidence_lock", "save_checkpoint", "validate_evidence_path")
+):
+    print("Report not loaded: this session's saved setup/helpers are not ready. The evidence file was not checked.")
+    print("Run cells 1-7 and 9-11 first. Cell 12 sends pairs; cell 13 records their original answers.")
+elif globals().get("V2_SCORING_SELF_TESTS_PASSED") is not True:
+    print("Report not loaded: run the scorer checks in cells 10-11 first. The evidence file was not checked.")
+elif globals().get("EVIDENCE_PATH") is None:
+    print("Report not loaded: the evidence location is not configured. No file was checked. Run cells 2 and 7.")
 else:
-    print("Report not loaded: saving is enabled, but the configured evidence file is missing.")
-    print("If you expected an existing file, check its configured location before starting again.")
-    print("Otherwise, run cell 7 to save the experiment, cell 12 to run the planned pairs, and cell 13 to check saved answers.")
-    print("Then rerun cell 14.")
+    validate_evidence_path()
+    if EVIDENCE_PATH.exists():
+        V2_REPORT = show_report()
+    else:
+        print("Report not loaded: the configured evidence file is missing.")
+        print("If you expected saved results, investigate their location; do not start again or delete evidence.")
+        print("For a new test, run cell 7 to save the setup, cell 12 for pairs, and cell 13 to record answers.")

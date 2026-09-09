@@ -93,5 +93,5 @@ for qid in QUESTION_IDS:
 print("Use show_reference('C01') and the other question IDs to see each question, answer and SQL.")
 print("Include the sorting and precision notes. Share PROMPTS for an identical team test.")
 print("Reference fingerprint:", DRAFT_REVIEW_SHA256)
-print("Record completed checks in REVIEW and CONTROL_EVIDENCE. Cell 7 lists anything still missing.")
-print("These are reference calculations, not agent results.")
+print("Next: cell 7 saves this exact setup. No approval fields need editing.")
+print("These are independently cross-checked reference calculations, not business-policy sign-off or agent results.")

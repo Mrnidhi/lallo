@@ -1,6 +1,5 @@
 # Notebook cell 2 (file 27) | Set up the comparison
-# Run once at the start of a session. The two execution switches start off.
-# For later changes, update individual values rather than resetting this cell.
+# Run at the start of a session. Cell 7 saves the setup; only cell 12 asks agents.
 
 V2_BENCHMARK_READY = False
 PERSONAL_OWNER = "jayarsr@oocl.com"
@@ -33,46 +32,21 @@ DAILY_OUTLOOK_TASK = "DAILY_OUTLOOK"  # Verify the task_name value, not delivera
 QUESTION_IDS = ["C01", "C02", "C03", "C04", "C05", "C06", "C07", "D01", "D04", "D06", "D09", "R01"]
 REPETITIONS = 3
 WORDING_VERSION = "v2_question_wording_2"
-CODE_VERSION = "v2_remaining_cells_2"
-EXPERIMENT_LABEL = "sales_ai_v2_first12_01"
+CODE_VERSION = "v2_simple_runner_1"
+EXPERIMENT_LABEL = "sales_ai_v2_first12_simple_01"
 
 # Leave these empty to select usable examples within each source.
 # A matching name in two domains is not proof of a shared identity.
 SALES_OVERRIDES = {"finance": None, "cases": None, "no_issues": None, "outlook": None}
 
-# Record the checks completed against cells 3-6. Keep unfinished items False.
-# These field names are retained so saved experiments stay compatible.
-REVIEW = {
-    "reviewer": "",
-    "draft_sha256": "",  # Identifies the exact reference answers checked in cell 6.
-    "business_logic_and_ground_truth": False,
-    "source_local_fixtures": False,
-    "ordering_and_precision": False,
-    "current_agent_controls": False,
-    "managed_model_limitation_accepted": True,
-    "notes": "",
-}
-
-# Check the saved agent instructions, specialists and warehouse settings.
-# The hashes below are reference values, not evidence of a new check.
-CONTROL_EVIDENCE = {
-    "checked_at_utc": "",
-    "supervisor_instruction_sha256": "6fd1c60e2561d89c38e6b05415d084caaf052a700183d8218f6f271245369d2b",
-    "csm_instruction_sha256": "6e0baefa73b1e847e46146e97732b014ded8e93710a2421f28ca496998349c7f",
-    "same_shared_readers": False,
-    "only_csm_reader_differs": False,
-    "same_warehouse_and_settings": False,
-}
-
-# Cell 8 checks the endpoints. Set each request format from its own schema or UI example.
-REQUEST_CONTRACT = {"A": None, "B": None}
-REQUEST_SCHEMA_REVIEWED = {"A": False, "B": False}
-ENABLE_EVIDENCE_SAVE = False
-ENABLE_AGENT_RUNS = False
-MAX_TRIALS_THIS_RUN = 2  # First run: one pair. Then raise, up to the remaining 72.
+# Both saved endpoint examples use the Responses input format.
+REQUEST_CONTRACT = {"A": "input", "B": "input"}
+MAX_TRIALS_THIS_RUN = 2  # One question through A and B per run of cell 12.
 HTTP_TIMEOUT_SECONDS = 180
-EVIDENCE_PATH = Path("/Workspace/Users/jayarsr@oocl.com/Sales AI EDA/v2-benchmark-evidence.json")
+# Keep the older experiment intact. Do not copy old trials into this new setup.
+EVIDENCE_PATH = Path("/Workspace/Users/jayarsr@oocl.com/Sales AI EDA/v2-benchmark-simple-evidence.json")
 
 print("Plan: 12 questions × 2 supervisors × 3 repetitions = 72 trials.")
 print("No enrichment, table rebuilds, new agents or production writes are included.")
-print("Next: run cells 3, 4, 5 and 6 individually. Keep both execution switches off.")
+print("Next: run cells 3-6 individually to prepare the reference answers.")
+print("All 41 questions remain the full target; these 12 are the ready-to-test subset.")

@@ -104,4 +104,4 @@ _v2_expect("Invalid precision", "NOT_EVALUABLE", _v2_base, _v2_base, numeric_pre
 
 V2_SCORING_SELF_TESTS_PASSED = True
 print(f"Scorer checks passed: {_v2_test_count} (synthetic data only).")
-print("Next: cell 12 runs the selected A/B pairs when agent runs are enabled.")
+print("Next: manually run cell 12 once to ask the first question through both agents.")
