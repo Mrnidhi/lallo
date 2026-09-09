@@ -8,6 +8,8 @@ Copilot Chat is a code helper: it suggests changes and explains outputs. You pas
 
 ## What changed
 
+**If cell 12 says “Request completion is uncertain”:** do not rerun it or use Run all. Copy [check_cell_12.py](troubleshooting/check_cell_12.py) into a temporary Python cell at the bottom of the existing notebook. Run only that cell and share its status output. It reads the checkpoint without sending a request, changing evidence or printing answer rows. This diagnostic is not a fix or a replacement for cell 12.
+
 This revision removes manual review flags, enabling switches and request-schema setup. Cell 7 checks preparation and source versions automatically, then saves or resumes a separate checkpoint: `v2-benchmark-simple-evidence.json`. It leaves `v2-benchmark-evidence.json` untouched.
 
 Code version: `v2_simple_runner_1`. Experiment: `sales_ai_v2_first12_simple_01`. Both request formats are set to `input`, matching observed endpoint Python examples. Cell 8 checks Ready endpoints without OpenAPI discovery.
@@ -51,4 +53,4 @@ All **41 questions** remain the target. This runner supports only the unchanged 
 
 Keep both arms’ full prompts, sources and settings comparable. Never send reference answers or scoring notes to tested agents. This compares managed setups, not proven identical underlying models. Production, enrichment, thresholds and swap scoring stay unchanged.
 
-Local regression and synthetic scoring tests passed; the revised notebook has not been run in Databricks. Keep generated answers and checkpoint files out of Git.
+Local regression and synthetic scoring tests passed. The latest supplied screenshot shows cell 11 passed its 40 scorer checks, but cell 12 could not confirm request completion. The underlying error and successful benchmark results are not yet verified. Keep generated answers and checkpoint files out of Git.
