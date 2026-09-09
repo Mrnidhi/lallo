@@ -2,6 +2,8 @@
 
 Revision: `v2_readable_client_1`
 
+**Execution paused:** the package setup changed a core Databricks connection library. Do not rerun setup or continue the benchmark until the personal notebook environment is corrected.
+
 We are comparing the existing personal wide-table agent with the personal booking-scope agent. The tables and agents are already built. This notebook checks their answers; it does not redesign or modify production.
 
 ## How to use this file
@@ -23,25 +25,13 @@ This is a **new client experiment**, not a recovery of the earlier uncertain req
 
 Use an existing compatible notebook environment: `databricks-openai` 0.17 or later, with a supported `openai` version below 3. Cell 8 checks the installed client features. No separate API key is needed in the code.
 
-## Setup | Only if the client package is missing
+## Setup | Compatibility issue found
 
-If Imports reports `No module named 'databricks_openai'`, add these two temporary setup cells above Imports in this personal notebook. Keep the 14 benchmark cells unchanged.
+Imports initially failed because `databricks_openai` was missing. Installing `databricks-openai==0.17.1` with `openai==2.26.0` completed, but Databricks reported that `databricks-connect` changed from `18.0.9` to `17.0.10`. That is a core runtime compatibility warning, not a successful benchmark check.
 
-**Setup A: install the client packages.** Run this block on its own. This is notebook-scoped, not a cluster-wide installation.
+Execution stopped before Python restart or any further benchmark cell. The change is notebook-scoped. Production objects and saved evidence were not modified.
 
-```text
-%pip install databricks-openai==0.17.1 openai==2.26.0
-```
-
-Read the output before continuing. Stop if installation fails, access is blocked, or dependency conflicts are reported. Do not force installation or change production compute settings.
-
-**Setup B: restart Python.** Run this separately, only after Setup A succeeds without conflicts.
-
-```text
-dbutils.library.restartPython()
-```
-
-The restart clears Python variables, not saved evidence files. Continue from **Cell 1 | Imports**, then run each benchmark cell in order. Do not use Run all. Skip this setup when the client is already compatible. A new notebook session may need the packages again.
+Do not repeat that installation, restart Python, force dependency resolution, or delete evidence to continue. The next step is to agree on restoring the original personal notebook environment and adapting the client to compatible existing libraries. The 14 code blocks below are preserved for reference; the current client setup is not cleared for execution.
 
 References: [Databricks notebook-scoped libraries](https://docs.databricks.com/aws/en/libraries/notebooks-python-libraries) and [Databricks OpenAI package](https://pypi.org/project/databricks-openai/0.17.1/).
 
