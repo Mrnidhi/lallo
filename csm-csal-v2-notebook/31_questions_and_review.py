@@ -7,6 +7,11 @@ assert "PREPARATION_STAMPS" in globals(), "Run notebook cells 3-5 successfully f
 invalidate_preparation("questions")
 assert "shared" in PREPARATION_STAMPS, "Notebook cell 5 has not completed successfully. Do not continue after an earlier cell failed."
 require_preparation("shared", ground_truth_payload())
+# The ranking fixtures need at least one usable value. Keep missing values in
+# the answers; this check does not change their population or ordering.
+assert any(row["total_outstanding"] is not None for row in GT["D01"]["answer"]), "Finance ranking has no populated balance. Review the fixture."
+assert any(row["severity"] is not None for row in GT["D04"]["answer"]), "Case ranking has no populated severity. Review the fixture."
+assert GT["D09"]["answer"][0]["created_ts"] is not None, "The selected Outlook has no creation time. Review the fixture."
 # These are the approved draft wording's fixed inputs, not freely editable filters.
 assert FILTERS == {"week": "2026WK22", "service": "PVCS", "tcr": "HKG"}, "The question wording and configured filters differ. Review a new question version first."
 assert MISSING_CUSTOMER == "CSM_POC_V2_NO_MATCH_20260901"
