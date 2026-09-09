@@ -2,7 +2,9 @@
 
 Use the existing **09-sales-ai-v2-benchmark** notebook and its same 14 cells. Replace each cell with the matching file below. Keep the completed build notebook unchanged. Use only the approved office session. Do not use **Run all**.
 
-[Project summary](PROJECT_SUMMARY.md) · [All 41 questions](question_bank.md) · [Diagrams](OBSIDIAN_PRODUCTION_AND_V2.md) · [Copilot handoff](OFFICE_COPILOT_HANDOFF.md)
+[Project summary](PROJECT_SUMMARY.md) · [All 41 questions](question_bank.md) · [Diagrams](OBSIDIAN_PRODUCTION_AND_V2.md) · [Copilot Chat instructions](OFFICE_COPILOT_HANDOFF.md)
+
+Copilot Chat is a code helper: it suggests changes and explains outputs. You paste and run the cells. It is separate from the two Databricks agents being tested.
 
 ## What changed
 

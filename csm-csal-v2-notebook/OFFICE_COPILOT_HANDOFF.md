@@ -1,12 +1,16 @@
-# Continue the existing Sales AI V2 comparison
+# Copilot Chat: continue the Sales AI V2 comparison
 
-Help me finish the existing CSM/CSAL comparison in **09-sales-ai-v2-benchmark**, one step at a time. I will paste the matching cells and run them myself in the approved office session. Keep explanations short and give a complete replacement cell when needed.
+You are helping me through ordinary Copilot Chat, not agent mode. Help me finish the existing CSM/CSAL comparison in **09-sales-ai-v2-benchmark**, one step at a time. You suggest code and explain outputs. I copy, paste, save and run every cell myself.
+
+Do not assume you can inspect my screen, read my folders, edit files, push to Git, operate Databricks or ask the tested agents questions. Use only content you can actually read in this chat. If something is missing, ask me to paste or attach that specific file or output. Never say code ran or a change was saved unless my output shows it.
 
 Use existing work; do not add a framework, reinstall anything, create another notebook, rebuild the model or create new agents. Do not use **Run all**.
 
 Repository: [Sales AI V2 notebook and handoff](https://github.com/Mrnidhi/lallo/tree/main/csm-csal-v2-notebook).
 
-Read `README.md`, `PROJECT_SUMMARY.md`, `question_bank.md` and relevant Python cells. Use `OBSIDIAN_PRODUCTION_AND_V2.md` for architecture context. Ask me to attach unavailable files. Referenced specifications are retained privately, not included here.
+Use `README.md`, `PROJECT_SUMMARY.md`, `question_bank.md` and the relevant Python cells when available. Use `OBSIDIAN_PRODUCTION_AND_V2.md` for architecture context. A repository link is not proof that you have read its files; ask me for any content you cannot access. Referenced specifications are retained privately, not included here.
+
+Keep each reply short: name the cell, provide its complete replacement code only if needed, tell me what to run and what a successful output should show. Then wait for my result before moving on. Keep imports in cell 1. Do not give several alternative fixes or a new framework.
 
 ## Goal and existing setup
 
@@ -30,23 +34,25 @@ Local regression and synthetic scoring tests passed; the revised notebook has no
 
 ## Start with one pair, retain all 41
 
-1. Confirm the pasted revision. Run cells 1–6 individually, stopping at the first error. Inspect reference logic with `show_reference`; passing preparation is not business verification.
-2. Run cell 7, then cells 8–11. Use the exact error and line if something fails; do not delete evidence or bypass checks.
-3. Manually run cell 12 once: at most two trials, one question through both agents. Run cell 13, inspect both original responses with `show_trial`, and use its `record_answer` template for actual returned rows and notes. Detailed review is optional.
-4. Run cell 14. Continue one pair at a time, reusing saved trials. Never automatically resend a request whose outcome is uncertain.
+Guide me through these steps, waiting for my output after each cell:
+
+1. Confirm the revision from the code I supply. Ask me to run cells 1–6 individually, stopping at the first error. Help check reference logic with `show_reference`; passing preparation is not business verification.
+2. Ask me to run cell 7, then cells 8–11. Diagnose the exact error and line if something fails; do not suggest deleting evidence or bypassing checks.
+3. Ask me to run cell 12 once with `MAX_TRIALS_THIS_RUN = 2`: one question through both agents. The notebook makes those requests, not Copilot Chat. Then guide me through cell 13, `show_trial` and `record_answer` using actual returned rows. Detailed review is optional.
+4. Ask me to run cell 14. Continue one pair at a time, reusing saved trials. Never suggest resending a request whose outcome is uncertain without investigating its saved record.
 
 The full target remains all **41 IDs and unchanged question wording**. Current code supports only **1–7, 15, 18, 20, 23 and 27**: C01–C07, D01, D04, D06, D09 and R01. Three repetitions per agent make **72 trials**, including the first pair.
 
-Then extend the same notebook for the remaining 29. Changing `QUESTION_IDS` alone is insufficient. Keep a simple coverage list with support, reference, execution and pending status. Use a separate checkpoint for the expanded plan; preserve first-batch evidence.
+Once this works, help me extend the same notebook for the remaining 29 by supplying one change at a time. Changing `QUESTION_IDS` alone is insufficient. Keep a simple coverage list with support, reference, execution and pending status. Use a separate checkpoint for the expanded plan; preserve first-batch evidence.
 
 All 41 would mean **246 question-level evaluations**, plus extra message turns for question 30. Its two messages must share context, reset for each arm/repetition. Question 28 must remain ambiguous. Limitation and action questions test boundaries, not permission to build features or perform actions.
 
 ## Keep evidence honest
 
-Send tested agents only exact prompts and agreed common context, never reference answers, reference SQL or scoring notes. Use full first-12 `PROMPTS`, including precision and sorting. Define missing contracts before observing answers.
+The notebook must send tested agents only exact prompts and agreed common context, never reference answers, reference SQL or scoring notes. Use full first-12 `PROMPTS`, including precision and sorting. Define missing contracts before observing answers.
 
 Record only rows and SQL actually returned. Missing evidence stays unavailable or incomplete. Keep NULL separate from zero; do not double-count commitment across TCRs. Preserve stored flags, source-local identities and comparable sources/settings. Changed or unverifiable conditions make comparisons inconclusive.
 
 Report numerical correctness, guardrails, pending tests, repeatability, SQL and response time separately. Keep customer identifiers and checkpoint contents out of Git.
 
-Production, enrichment, threshold calibration and swap scoring stay unchanged. Ask before new access, business decisions or expanded actions. Start with a brief status summary, then ask which cell I last completed and for its output; do not submit all questions immediately.
+Production, enrichment, threshold calibration and swap scoring stay unchanged. Ask before suggesting new access, business decisions or expanded actions. Start by asking which cell I last completed and for its output. Do not assume a successful run or start by generating more code.
