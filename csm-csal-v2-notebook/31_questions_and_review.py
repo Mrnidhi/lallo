@@ -51,11 +51,11 @@ METHOD_NOTES = {
 }
 PROMPTS = {qid: question + ("\n\n" + METHOD_NOTES[qid] if METHOD_NOTES[qid] else "") for qid, question in QUESTIONS.items()}
 TRACEABILITY = {
-    "C01": "question_bank.md 1; FR-003; CSM column dictionary; confirmed utilization",
-    "C02": "question_bank.md 2; FR-003; stored low-booking signal",
+    "C01": "question_bank.md 1; FR-002/FR-012; CSM column dictionary; confirmed utilization",
+    "C02": "question_bank.md 2; FR-002/FR-012; stored low-booking signal",
     "C03": "question_bank.md 3; FR-003; stored high-cancellation signal",
     "C04": "question_bank.md 4; FR-003; stored high-rejection signal",
-    "C05": "question_bank.md 5; FR-003; stored above-CSAL signal",
+    "C05": "question_bank.md 5; FR-012; stored above-CSAL signal",
     "C06": "question_bank.md 6; CSM grain/column lineage; repeated booking measures",
     "C07": "question_bank.md 7; exact-filter and no-match guardrail",
     "D01": "question_bank.md 15; finance specification; fincon_issues dictionary",
