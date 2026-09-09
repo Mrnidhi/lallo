@@ -1,5 +1,5 @@
-# Notebook cell 14 (file 39) | Re-score saved evidence and show before/after results
-# This cell never submits questions. Re-running replaces only derived report data.
+# Notebook cell 14 (file 39) | Show the A/B results from saved answers
+# Recalculates and saves the report only; it does not send questions.
 
 
 def sql_counts(text):
@@ -14,12 +14,13 @@ def sql_counts(text):
 
 
 def score_trial(trial, reference):
+    """Combine the row comparison with the recorded answer and source checks."""
     if trial is None:
         return {"status": "PENDING", "reason": "Not submitted."}
     if trial.get("source_check") != "STABLE":
         return {"status": "INCONCLUSIVE", "reason": "The source state during this trial is not verified stable."}
     if trial["state"] != "RECEIVED" or not trial.get("reviews"):
-        return {"status": "NOT_EVALUABLE", "reason": "A reviewed original response is required."}
+        return {"status": "NOT_EVALUABLE", "reason": "Check and record the original response in cell 13 first."}
     review = trial["reviews"][-1]["review"]
     assert review["response_fingerprint"] == trial["response_fingerprint"] == fingerprint(trial["response"])
     question = trial["question"]
@@ -59,6 +60,7 @@ def score_trial(trial, reference):
 
 
 def build_report(state):
+    """Summarize both agents while keeping missing and inconclusive evidence visible."""
     def valid_seconds(value):
         return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and value >= 0
 
@@ -149,47 +151,59 @@ def build_report(state):
 
 
 def show_sql_example(question, repetition=1):
+    """Show captured SQL for both agents, when the saved evidence includes it."""
     state = load_checkpoint()
     for arm in ["A", "B"]:
         trial = state["trials"].get(trial_id(question, arm, repetition), {})
         reviews = trial.get("reviews", [])
         evidence = reviews[-1]["review"]["sql_evidence"] if reviews else []
-        print(arm, "recorded SQL:" if evidence else "SQL not available; no example fabricated.")
+        print(f"Agent {arm}: " + ("recorded SQL" if evidence else "SQL evidence is not available."))
         for entry in evidence:
             print(entry["text"])
             print(entry["correctness"], sql_counts(entry["text"]))
 
 
 def show_report():
-    assert V2_SCORING_SELF_TESTS_PASSED
+    """Display results and replace the derived report without changing trial evidence."""
+    assert V2_SCORING_SELF_TESTS_PASSED, "Run the scorer checks in cell 11 before reporting."
     state = load_checkpoint()
     report = build_report(state)
     print("Sales AI V2 | First 12 questions")
     for arm, title in [("A", "Wide baseline"), ("B", "Booking-scope view")]:
         result = report["arms"][arm]
-        print(title, stable_json(result))
-    print("Question | A: correct / 3 | B: correct / 3")
+        print(f"\nAgent {arm} | {title}")
+        for name, value in result.items():
+            print(f"  {name.replace('_', ' ')}: {stable_json(value)}")
+    print("\nQuestion | A: correct / 3 | B: correct / 3")
     for question in QUESTION_IDS:
         counts = [sum(report["trial_scores"][trial_id(question, arm, repetition)]["status"] == "CORRECT" for repetition in [1, 2, 3]) for arm in ["A", "B"]]
-        print(question, counts[0], counts[1])
-    print("First-batch evidence complete:", report["first12_evidence_complete"])
-    print("Answers reviewed:", report["first12_answers_reviewed"], "Grain reviewed:", report["first12_grain_review_complete"],
-          "Complete SQL capture reviewed:", report["first12_sql_review_complete"])
+        print(f"{question:<8} | {counts[0]:^14} | {counts[1]:^14}")
+    print("\nEvidence complete:", report["first12_evidence_complete"])
+    print("Answer checks complete:", report["first12_answers_reviewed"])
+    print("Grain checks complete:", report["first12_grain_review_complete"])
+    print("Complete SQL capture checked:", report["first12_sql_review_complete"])
     print("Assigned-source usage verified for every trial:", report["assigned_sources_verified_for_all_trials"])
     print(report["timing_note"])
     print(report["evidence_note"])
     print(report["sql_metrics_note"])
-    print("No before/after improvement is claimed until the results support it.")
+    print("Interpret A/B differences only alongside correctness, source isolation and the recorded limitations.")
     print("Full question bank, enrichment, receiver reliability and threshold calibration remain outside this batch.")
     with evidence_lock():
         latest = load_checkpoint()
-        assert fingerprint(latest["trials"]) == fingerprint(state["trials"]), "Reviews changed while reporting. Rerun the report."
+        assert fingerprint(latest["trials"]) == fingerprint(state["trials"]), "Saved answer evidence changed while reporting. Rerun cell 14."
         latest["derived_report"] = report
         save_checkpoint(latest)
     return report
 
 
-if ENABLE_EVIDENCE_SAVE and EVIDENCE_PATH.exists():
+if not ENABLE_EVIDENCE_SAVE:
+    print("Report not loaded: ENABLE_EVIDENCE_SAVE is False. The saved file was not checked.")
+    print("Once the setup checks are complete, set ENABLE_EVIDENCE_SAVE = True in a separate cell, then run cell 7.")
+    print("Use cell 12 to run the planned pairs and cell 13 to check saved answers, then rerun cell 14.")
+elif EVIDENCE_PATH.exists():
     V2_REPORT = show_report()
 else:
-    print("No stored experiment to report. No results have been invented.")
+    print("Report not loaded: saving is enabled, but the configured evidence file is missing.")
+    print("If you expected an existing file, check its configured location before starting again.")
+    print("Otherwise, run cell 7 to save the experiment, cell 12 to run the planned pairs, and cell 13 to check saved answers.")
+    print("Then rerun cell 14.")

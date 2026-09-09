@@ -1,12 +1,12 @@
-# Notebook cell 9 (file 34) | Controlled, restart-safe submissions
-# Defines the runner. It does not submit questions until called from notebook cell 12.
+# Notebook cell 9 (file 34) | Set up the paired runner
+# Cell 12 calls this runner. Loading it does not send a question.
 
 
 @contextmanager
 def evidence_lock():
     validate_evidence_path()
     lock_path = EVIDENCE_PATH.with_suffix(".lock")
-    # A second process fails here. A leftover lock needs a human check, not auto-deletion.
+    # Only one runner can write at a time. Keep a leftover lock for investigation.
     descriptor = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     try:
         yield
@@ -26,7 +26,7 @@ def load_checkpoint():
 
 def current_transport():
     validate_request_settings()
-    assert ENDPOINTS == MANIFEST["endpoints"], "Endpoint names changed after approval."
+    assert ENDPOINTS == MANIFEST["endpoints"], "Endpoint names differ from the saved test setup."
     assert WAREHOUSE_ID == MANIFEST["warehouse"]
     return {"identities": {arm: endpoint_identity(arm) for arm in ENDPOINTS},
             "schemas": {arm: fingerprint(schema) for arm, schema in ENDPOINT_SCHEMAS.items()},
@@ -40,7 +40,7 @@ def run_next_pairs(max_trials=2):
     assert globals().get("V2_SCORING_SELF_TESTS_PASSED") is True, "Run the scoring self-tests first."
     assert isinstance(max_trials, int) and not isinstance(max_trials, bool) and 2 <= max_trials <= 72 and max_trials % 2 == 0
     require_preparation("questions", review_payload())
-    assert REVIEW.get("draft_sha256") == MANIFEST["review"]["draft_sha256"] == fingerprint(review_payload()), "Ground-truth approval no longer matches the prepared questions."
+    assert REVIEW.get("draft_sha256") == MANIFEST["review"]["draft_sha256"] == fingerprint(review_payload()), "Reference answers no longer match the saved questions. Keep this test unchanged and check the new setup separately."
     submitted = 0
     with evidence_lock():
         STATE = load_checkpoint()
@@ -52,11 +52,11 @@ def run_next_pairs(max_trials=2):
         uncertain = [row for row in STATE["trials"].values() if row["state"] in {"SUBMITTED", "UNKNOWN"}]
         assert not uncertain, "A prior request has uncertain completion. Reconcile its existing evidence; do not resubmit it."
         not_sent = [row for row in STATE["trials"].values() if row["state"] == "NOT_SENT"]
-        assert not not_sent, "A local pre-inference failure needs review. Its request was not sent; do not silently skip or reset the trial."
+        assert not not_sent, "A previous request failed before sending. Inspect its NOT_SENT record; do not skip or reset it."
         pending_checks = [row for row in STATE["trials"].values() if row["state"] == "RECEIVED" and row.get("source_check") not in {"STABLE", "INCONCLUSIVE"}]
-        assert not pending_checks, "A saved response lacks its post-run controls. Do not continue until that evidence is reviewed."
+        assert not pending_checks, "A saved response is missing its post-run source checks. Resolve that record before continuing."
         if any(row.get("source_check") == "INCONCLUSIVE" for row in STATE["trials"].values()):
-            raise RuntimeError("This experiment has source-drift evidence. Stop and review before continuing.")
+            raise RuntimeError("Source or endpoint checks changed or could not be verified. Keep the evidence and investigate before continuing.")
         selected = []
         remaining_budget = max_trials
         for position in range(0, len(PLAN), 2):
@@ -88,12 +88,12 @@ def run_next_pairs(max_trials=2):
                 row.update(state="NOT_SENT", completed_at_utc=utc_now(), error_type="InvocationNotSubmittedError",
                            error_stage="authentication_or_request_preparation", source_check="NOT_RUN")
                 save_checkpoint(STATE)
-                raise RuntimeError("Local request preparation failed before inference. No question was sent. Review the saved NOT_SENT trial before continuing.") from None
+                raise RuntimeError("Request preparation failed before sending. Inspect the saved NOT_SENT record before continuing.") from None
             except HTTPError as error:
                 # An HTTP error is not proof that no downstream work occurred.
                 row.update(state="UNKNOWN", http_status=error.code, request_id=error.headers.get("x-databricks-request-id") if error.headers else None, completed_at_utc=utc_now(), error_type="HTTPError")
                 save_checkpoint(STATE)
-                raise RuntimeError("HTTP response requires review. Trial preserved without retry.") from None
+                raise RuntimeError("The server returned an HTTP error. The request record was saved and has not been retried.") from None
             except Exception as error:
                 row.update(state="UNKNOWN", completed_at_utc=utc_now(), error_type=type(error).__name__)
                 save_checkpoint(STATE)
@@ -133,4 +133,5 @@ def reconcile_saved_trial(key, saved_response, request_id, evidence_note, review
     print("Original response recovered. Timing/source comparability remains unverified; no automatic resubmission.")
 
 
-print("Runner ready as a function. No agent requests were submitted by this cell.")
+print("Paired runner loaded. No question was sent.")
+print("Next: run cells 10 and 11 to load and test the answer comparisons.")

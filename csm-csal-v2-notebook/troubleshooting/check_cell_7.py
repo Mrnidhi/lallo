@@ -68,7 +68,7 @@ def show_cell_7_checks():
     print("\nNo review flags or existing notebook values were changed.")
     print("This is not approval or a readiness test. Live sources, timezone and saved files were not checked.")
     print("Keep agent runs off while resolving the original error. Do not change a flag just to clear it.")
-    print("Share this status output. Also provide only the AssertionError text and failing code line, with private details removed.")
+    print("If you need help, share this status output and the error message with its failing code line. Remove private details.")
 
 
 show_cell_7_checks()

@@ -1,5 +1,6 @@
-# Notebook cell 2 (file 27) | Settings and review gates
-# Defaults allow read-only preparation, not file writes or agent questions.
+# Notebook cell 2 (file 27) | Set up the comparison
+# Run once at the start of a session. The two execution switches start off.
+# For later changes, update individual values rather than resetting this cell.
 
 V2_BENCHMARK_READY = False
 PERSONAL_OWNER = "jayarsr@oocl.com"
@@ -35,14 +36,15 @@ WORDING_VERSION = "v2_question_wording_2"
 CODE_VERSION = "v2_remaining_cells_2"
 EXPERIMENT_LABEL = "sales_ai_v2_first12_01"
 
-# Leave these empty to select source-local, nonempty draft fixtures.
+# Leave these empty to select usable examples within each source.
 # A matching name in two domains is not proof of a shared identity.
 SALES_OVERRIDES = {"finance": None, "cases": None, "no_issues": None, "outlook": None}
 
-# Complete after reviewing notebook cells 3-6. Do not tick these just to clear a gate.
+# Record the checks completed against cells 3-6. Keep unfinished items False.
+# These field names are retained so saved experiments stay compatible.
 REVIEW = {
     "reviewer": "",
-    "draft_sha256": "",  # Copy the displayed cell 6 fingerprint only after reviewing that draft.
+    "draft_sha256": "",  # Identifies the exact reference answers checked in cell 6.
     "business_logic_and_ground_truth": False,
     "source_local_fixtures": False,
     "ordering_and_precision": False,
@@ -51,8 +53,8 @@ REVIEW = {
     "notes": "",
 }
 
-# Confirm the current saved instructions and tool lists in Databricks.
-# The earlier checked values are supplied as references, not fresh proof.
+# Check the saved agent instructions, specialists and warehouse settings.
+# The hashes below are reference values, not evidence of a new check.
 CONTROL_EVIDENCE = {
     "checked_at_utc": "",
     "supervisor_instruction_sha256": "6fd1c60e2561d89c38e6b05415d084caaf052a700183d8218f6f271245369d2b",
@@ -62,8 +64,7 @@ CONTROL_EVIDENCE = {
     "same_warehouse_and_settings": False,
 }
 
-# The endpoint request schema has not been verified. Notebook cell 8 helps inspect it.
-# Set each to 'messages' or 'input' only after checking that endpoint's schema.
+# Cell 8 checks the endpoints. Set each request format from its own schema or UI example.
 REQUEST_CONTRACT = {"A": None, "B": None}
 REQUEST_SCHEMA_REVIEWED = {"A": False, "B": False}
 ENABLE_EVIDENCE_SAVE = False
@@ -74,3 +75,4 @@ EVIDENCE_PATH = Path("/Workspace/Users/jayarsr@oocl.com/Sales AI EDA/v2-benchmar
 
 print("Plan: 12 questions × 2 supervisors × 3 repetitions = 72 trials.")
 print("No enrichment, table rebuilds, new agents or production writes are included.")
+print("Next: run cells 3, 4, 5 and 6 individually. Keep both execution switches off.")

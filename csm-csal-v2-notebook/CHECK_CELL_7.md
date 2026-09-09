@@ -10,11 +10,11 @@ Keep Databricks and agent-setting checks inside your approved office session. If
 2. Click **Copy raw file** above the code.
 3. In Databricks, add one temporary **Python** cell at the very bottom, after the report cell. This keeps the existing cells in their current order.
 4. Paste the code and run **only that temporary cell**.
-5. Copy its status output back to this chat. Include the original `AssertionError` message and failing code line, with any private details removed.
+5. Use the status output to find missing items. If you need help, share it with the original error message and failing code line, with any private details removed. Older copies may raise `AssertionError`; the new setup list raises `RuntimeError`.
 
 The diagnostic reads existing notebook variables only. It does not query tables, call agents, read or save files, or change approvals. It does not print customer rows, names, reviewer notes or credentials.
 
-Do not replace cell 7 with this diagnostic. In the saved file, the review assertion is line 14, not line 13. Pasting may shift line numbers, so the actual error message matters.
+Do not replace cell 7 with this diagnostic. The revised cell 7 prints its missing setup items together; older copies may show only an assertion. Line numbers can change between versions, so use the actual message and code line.
 
 ## 2. Understand the output
 
@@ -36,10 +36,12 @@ Do not replace cell 7 with this diagnostic. In the saved file, the review assert
 After cell 6 succeeds, use the same temporary cell to run:
 
 ```python
-show_review("C01")
+show_reference("C01")
 ```
 
 This displays the exact question, its requirement reference, expected level of detail, expected rows and reference SQL. Repeat with **C02, C03, C04, C05, C06, C07, D01, D04, D06, D09 and R01**.
+
+If using an older cell 6, the same helper is named `show_review`. The revised cell keeps both names available.
 
 Review these inside the office notebook. They can contain business data. Do not upload their output, the saved experiment file or customer screenshots to GitHub. Share the diagnostic statuses instead.
 
@@ -47,7 +49,7 @@ Review these inside the office notebook. They can contain business data. Do not 
 
 The review fields live in cell 2 under `REVIEW` and `CONTROL_EVIDENCE`. Editing displayed code alone does not change the values already in memory. But rerunning all of cell 2 with its defaults resets approvals and other settings.
 
-For now, send the diagnostic output before changing these fields. We can then make only the necessary, evidence-backed assignments in the temporary cell and preserve those deliberate settings in cell 2. Do not turn every flag on, auto-fill approval from a passing test, or remove assertions.
+Use the missing-item list to update only fields backed by completed checks. Make individual assignments in the temporary cell and preserve those deliberate settings in cell 2. Ask for help if an item is unclear. Do not turn every flag on, auto-fill a completed check from a passing test, or remove assertions.
 
 The model limitation was already accepted: this compares two Databricks-managed setups, not a proven identical underlying model or an exact copy of production.
 
@@ -55,4 +57,4 @@ After the review is genuinely complete, cell 7 can save the approved experiment 
 
 If cell 7 reports a changed source or an existing experiment mismatch, stop and preserve the evidence. Changing review notes or control records can change the experiment identity. Do not delete the saved file or rename the experiment to bypass that check.
 
-Cell 14's **No stored experiment to report** message means saving is disabled or the evidence file is absent. It is not a reason to bypass cell 7. Actual comparison results also require recorded agent responses and their review.
+Cell 14 now prints **Report not loaded** with a specific reason: saving is disabled, or the configured evidence file is missing. Older copies combine those reasons into **No stored experiment to report**. Neither is a reason to bypass cell 7. Actual comparison results also require recorded agent responses and their checks.

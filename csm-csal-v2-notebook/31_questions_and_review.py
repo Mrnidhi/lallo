@@ -1,5 +1,5 @@
-# Notebook cell 6 (file 31) | Review questions and expected answers before approval
-# The base wording matches the numbered question bank. Real inputs stay here.
+# Notebook cell 6 (file 31) | Show the questions and reference answers
+# Keep the full prompt unchanged when asking either agent.
 
 V2_BENCHMARK_READY = False
 DRAFT_REVIEW_SHA256 = None
@@ -12,7 +12,7 @@ require_preparation("shared", ground_truth_payload())
 assert any(row["total_outstanding"] is not None for row in GT["D01"]["answer"]), "Finance ranking has no populated balance. Review the fixture."
 assert any(row["severity"] is not None for row in GT["D04"]["answer"]), "Case ranking has no populated severity. Review the fixture."
 assert GT["D09"]["answer"][0]["created_ts"] is not None, "The selected Outlook has no creation time. Review the fixture."
-# These are the approved draft wording's fixed inputs, not freely editable filters.
+# These inputs must match the fixed question wording.
 assert FILTERS == {"week": "2026WK22", "service": "PVCS", "tcr": "HKG"}, "The question wording and configured filters differ. Review a new question version first."
 assert MISSING_CUSTOMER == "CSM_POC_V2_NO_MATCH_20260901"
 assert all(LOOKUP_FIXTURE[name] == FILTERS[key] for name, key in [("week_num", "week"), ("service", "service"), ("tcr", "tcr")])
@@ -35,8 +35,7 @@ QUESTIONS["C06"] = QUESTIONS["C06"].format(**LOOKUP_FIXTURE)
 for qid, domain in [("D01", "finance"), ("D04", "cases"), ("D06", "no_issues"), ("D09", "outlook"), ("R01", "finance")]:
     QUESTIONS[qid] = QUESTIONS[qid].format(sales=SALES_FIXTURES[domain])
 
-# Deterministic ranking and display conventions must be identical in both arms.
-# This appendix is explicit and versioned; it is not a silent question rewrite.
+# Both agents receive the same sorting, tie-breaking and display instructions.
 METHOD_VERSION = "v2_first12_order_precision_1"
 booking_ties_note = "For ties, sort customer, agreement, week_num, service and TCR ascending, with missing values last. Keep TEU exact and NULL separate from zero."
 finance_ties_note = "Keep balances to six decimals and missing values last. Break ties by customer, sales, sales_full, snapshot_date, overdue_invoices, max_aging_days, ar_severity, overdue_30_amount, overdue_60_amount and overdue_90_amount, ascending."
@@ -80,15 +79,19 @@ def show_review(qid):
     print("Requirement:", TRACEABILITY[qid])
     print("Expected grain:", "booking scope" if qid.startswith("C") else
           {"D01": "finance source record", "D04": "case_id", "D06": "case_id", "D09": "deliverable_id", "R01": "separate booking scopes and finance source records"}[qid])
-    print("Expected source rows and SQL below remain inside this notebook:")
+    print("Reference rows and SQL (keep this output in the personal workspace):")
     for section, rows in GT[qid].items():
         print(section, stable_json(rows))
         print(GT_SQL[qid][section])
 
 
+# Keep the earlier function name available for existing notebook calls.
+show_reference = show_review
+
 for qid in QUESTION_IDS:
-    print(qid, {section: len(rows) for section, rows in GT[qid].items()}, "DRAFT")
-print("Use show_review('C01') and the other IDs to inspect each answer and its SQL.")
-print("Review the method appendix too. Share PROMPTS, not just the base wording, for an identical team test.")
-print("Draft fingerprint to approve after review:", DRAFT_REVIEW_SHA256)
-print("After review, complete REVIEW (including draft_sha256) and CONTROL_EVIDENCE in notebook cell 2, then run cell 7.")
+    print(qid, {section: len(rows) for section, rows in GT[qid].items()}, "reference rows")
+print("Use show_reference('C01') and the other question IDs to see each question, answer and SQL.")
+print("Include the sorting and precision notes. Share PROMPTS for an identical team test.")
+print("Reference fingerprint:", DRAFT_REVIEW_SHA256)
+print("Record completed checks in REVIEW and CONTROL_EVIDENCE. Cell 7 lists anything still missing.")
+print("These are reference calculations, not agent results.")

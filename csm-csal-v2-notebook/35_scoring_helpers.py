@@ -1,10 +1,9 @@
-# Notebook cell 10 (file 35). Compare answers with approved reference rows.
-# Run the imports cell first. This cell does not submit questions or write data.
-# The caller must verify that aliases mean the same thing before supplying them.
+# Notebook cell 10 (file 35) | Compare recorded answers with the reference rows
+# Loads comparison functions only. Next, run the synthetic checks in cell 11.
+# Supply an alias only after verifying that both column names mean the same thing.
 
-# This is an explicit serialization rule, not an assumption about source time zones.
-# Aware datetime objects represent instants and are compared in UTC. Naive objects
-# stay naive. Date strings are not parsed or assigned a time zone automatically.
+# Timestamps with a timezone are compared in UTC; those without one stay unchanged.
+# Date strings stay strings. This rule does not infer source timezones.
 V2_SCORING_DATETIME_RULE = "aware_utc_naive_unchanged"
 V2_SCORING_SELF_TESTS_PASSED = False
 
@@ -102,11 +101,11 @@ def _v2_tokens_hash(tokens, ordered):
 
 
 def score_section(expected_rows, actual_rows, columns, numeric_precision, aliases, ordered=True):
-    """Score structured rows, not prose, against an approved projection.
+    """Compare structured rows, not prose, with the selected reference columns.
 
     numeric_precision maps numeric columns to decimal places, or None for exact
     values. Unlisted columns retain their types. aliases maps canonical names to
-    actual response names. Supplying an alias asserts that it was reviewed.
+    actual response names. Supplying an alias confirms its meaning was checked.
 
     Correct business values can pass even when naming or extra columns violate
     the output contract. An empty answer requires separate retrieval evidence;
@@ -136,7 +135,7 @@ def score_section(expected_rows, actual_rows, columns, numeric_precision, aliase
     ) or len(set(columns)) != len(columns):
         return stop("NOT_EVALUABLE", "The reference projection must contain unique column names.")
     if not isinstance(numeric_precision, dict) or not isinstance(aliases, dict):
-        return stop("NOT_EVALUABLE", "Precision and reviewed alias rules must be dictionaries.")
+        return stop("NOT_EVALUABLE", "Precision and verified alias rules must be dictionaries.")
     if not isinstance(ordered, bool):
         return stop("NOT_EVALUABLE", "The ordering rule must be explicitly True or False.")
     if any(column not in columns for column in numeric_precision):
@@ -160,7 +159,7 @@ def score_section(expected_rows, actual_rows, columns, numeric_precision, aliase
     if any(not isinstance(row, dict) for row in expected_rows):
         return stop("NOT_EVALUABLE", "A reference row is not a dictionary.")
     if any(not isinstance(row, dict) for row in actual_rows):
-        return stop("NOT_EVALUABLE", "An answer row is not a dictionary; review extraction first.")
+        return stop("NOT_EVALUABLE", "An answer row is not a dictionary. Check the values copied from the saved response.")
     if any(any(column not in row for column in columns) for row in expected_rows):
         return stop("NOT_EVALUABLE", "The reference evidence is missing a required column.")
 
@@ -202,4 +201,4 @@ def score_section(expected_rows, actual_rows, columns, numeric_precision, aliase
     return stop("CORRECT", "The requested rows and values match the reference under the declared rules.")
 
 
-print("Scoring helpers loaded. No answers have been scored or generated.")
+print("Scoring helpers loaded. Run cell 11 to test them with synthetic data.")

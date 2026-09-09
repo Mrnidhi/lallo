@@ -1,5 +1,5 @@
-# Notebook cell 11 (file 36). Check the scorer with synthetic records first.
-# These tests contain no source data and do not call an agent or save a table.
+# Notebook cell 11 (file 36) | Test the scorer with synthetic records
+# Checks numbers, NULLs, row order, aliases and missing evidence. No source data.
 
 V2_SCORING_SELF_TESTS_PASSED = False
 _v2_test_count = 0
@@ -21,6 +21,7 @@ def _v2_expect(label, expected_status, expected_rows, actual_rows,
 
 
 _v2_base = [{"id": "synthetic", "value": Decimal("12.00")}]
+# Numbers: exact comparison, declared rounding, invalid values and NULLs.
 _v2_expect("Exact numeric representations", "CORRECT", _v2_base,
            [{"id": "synthetic", "value": "12"}])
 _v2_expect("Exact TEU retains fractional differences", "INCORRECT", _v2_base,
@@ -48,6 +49,7 @@ _v2_expect("Signed zero", "CORRECT",
            [{"id": "synthetic", "value": "-0.00"}], [{"id": "synthetic", "value": 0}])
 
 _v2_two_rows = [{"id": "first", "value": 1}, {"id": "second", "value": 2}]
+# Rows: ordering and duplicate counts are separate requirements.
 _v2_expect("Required order", "INCORRECT", _v2_two_rows, list(reversed(_v2_two_rows)))
 _v2_expect("Unordered multiset", "CORRECT", _v2_two_rows, list(reversed(_v2_two_rows)), ordered=False)
 _v2_expect("Expected repeated rows are legitimate", "CORRECT", _v2_base * 2, _v2_base * 2)
@@ -56,7 +58,8 @@ _v2_expect("Multiset preserves duplicate counts", "INCORRECT",
            [_v2_two_rows[0], _v2_two_rows[0], _v2_two_rows[1]],
            [_v2_two_rows[0], _v2_two_rows[1], _v2_two_rows[1]], ordered=False)
 
-_v2_alias_result = _v2_expect("Reviewed alias", "CORRECT", _v2_base,
+# Columns: verified aliases can match values without matching the output contract.
+_v2_alias_result = _v2_expect("Verified alias", "CORRECT", _v2_base,
                             [{"id": "synthetic", "amount": 12}], aliases={"value": "amount"})
 assert _v2_alias_result["contract_compliant"] is False
 _v2_extra_result = _v2_expect("Extra metadata does not change business correctness", "CORRECT", _v2_base,
@@ -65,7 +68,7 @@ assert _v2_extra_result["contract_compliant"] is False
 _v2_exact_result = _v2_expect("Exact contract", "CORRECT", _v2_base, _v2_base)
 assert _v2_exact_result["contract_compliant"] is True
 assert _v2_exact_result["expected_hash"] == _v2_exact_result["actual_hash"]
-_v2_expect("Unreviewed alias is not inferred", "INCORRECT", _v2_base,
+_v2_expect("Unmapped alias is not inferred", "INCORRECT", _v2_base,
            [{"id": "synthetic", "amount": 12}])
 _v2_expect("Ambiguous alias mapping", "NOT_EVALUABLE", _v2_base, _v2_base,
            aliases={"id": "value"})
@@ -75,6 +78,7 @@ _v2_expect("Missing ground-truth projection", "NOT_EVALUABLE",
            [{"id": "synthetic"}], _v2_base)
 _v2_expect("Missing answer projection", "INCORRECT", _v2_base, [{"id": "synthetic"}])
 
+# Invalid values remain errors; date and timestamp types are not guessed.
 for _v2_bad_numeric in (True, "NaN", float("nan"), "Infinity", float("inf"), "1,000", "12%", " 12 "):
     _v2_expect("Reject invalid numeric answer", "INCORRECT", _v2_base,
                [{"id": "synthetic", "value": _v2_bad_numeric}])
@@ -99,4 +103,5 @@ _v2_expect("Answer prose is not structured evidence", "NOT_EVALUABLE", _v2_base,
 _v2_expect("Invalid precision", "NOT_EVALUABLE", _v2_base, _v2_base, numeric_precision={"value": True})
 
 V2_SCORING_SELF_TESTS_PASSED = True
-print(f"Scoring self-tests passed: {_v2_test_count}. Synthetic data only.")
+print(f"Scorer checks passed: {_v2_test_count} (synthetic data only).")
+print("Next: cell 12 runs the selected A/B pairs when agent runs are enabled.")
