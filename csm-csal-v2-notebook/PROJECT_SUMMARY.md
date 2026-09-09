@@ -25,7 +25,7 @@ There are now two personal main agents:
 
 Both have the same four shared specialists for finance, cases, sales workspace information and CSAL detail. Only their CSM specialist differs. This is not a rebuild of every Gold table or a replacement of production agents.
 
-We also have a 41-question bank, the testing notebook, architecture diagrams and progress notes. The first test covers 12 of those questions.
+We also have a 41-question bank, the testing notebook, architecture diagrams and progress notes. The full target is now all 41 questions. The current notebook supports a 12-question first batch; the other 29 still need their test and scoring setup.
 
 ## Where are we now?
 
@@ -41,7 +41,7 @@ There are no verified V2 results yet. The smaller V1 test improved accuracy but 
 2. Run one question through both agents. Confirm responses and supporting SQL can be captured and saved.
 3. Ask the same 12 questions three times per agent: **72 planned runs** in total, including the first pair. Failed runs must be recorded too.
 4. Compare correct answers, consistency, speed, SQL complexity and whether records were counted correctly. Mark missing evidence honestly.
-5. Present what improved, what did not and whether to expand testing to the remaining questions.
+5. Extend the test to the remaining 29 questions. Some need numerical answers, some test an honest explanation of limits, and one needs a two-message conversation. Report all 41, keeping pending tests and guardrail outcomes separate from numerical accuracy.
 
 Databricks manages the underlying models, so we cannot prove they are identical. We will compare the complete setups, not claim the redesign alone caused any difference.
 
@@ -52,3 +52,5 @@ Enrichment, historical threshold changes and swap scoring remain parked. They ar
 The alternative structure and agents are built. Now we need to finish the checks, run the comparison and show whether it actually helps.
 
 Next action: follow [the cell 7 review guide](CHECK_CELL_7.md) and share the diagnostic statuses and exact error, not business rows.
+
+[The office Copilot handoff](OFFICE_COPILOT_HANDOFF.md) explains how to continue through the full question bank.

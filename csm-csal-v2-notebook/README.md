@@ -4,6 +4,10 @@ Use the existing personal **09-sales-ai-v2-benchmark** notebook. Keep the comple
 
 [Project summary](PROJECT_SUMMARY.md) explains the goal and current position.
 
+Also available: [Obsidian diagrams](OBSIDIAN_PRODUCTION_AND_V2.md), [all 41 questions](question_bank.md), and [the office Copilot handoff](OFFICE_COPILOT_HANDOFF.md).
+
+**Scope update:** all 41 questions are now the full target. This code still runs the first 12 only. The Copilot handoff describes how to add the remaining 29 without mixing checkpoints or treating unsupported requests as numerical tests. Do not change the question list alone and assume the runner supports all 41.
+
 ## What changed
 
 The same 14 cells now have shorter comments, clearer output and practical next steps. Cell 7 lists missing setup items together. Cell 14 distinguishes saving being off from a missing result file.
