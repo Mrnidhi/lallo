@@ -21,7 +21,29 @@ The custom HTTP request code is replaced by Databricks' supported Responses clie
 
 This is a **new client experiment**, not a recovery of the earlier uncertain request. It saves to `v2-benchmark-client-evidence.json` in your personal workspace. Leave `v2-benchmark-simple-evidence.json` and `v2-benchmark-evidence.json` unchanged. Earlier failures remain part of the project history, not evidence of successful runs.
 
-Use an existing compatible notebook environment: `databricks-openai` 0.17 or later, with a supported `openai` version below 3. Cell 8 checks the installed client features. No packages are installed or upgraded by this notebook. If an import or compatibility check fails, share that exact error before changing the environment. No separate API key is needed in the code.
+Use an existing compatible notebook environment: `databricks-openai` 0.17 or later, with a supported `openai` version below 3. Cell 8 checks the installed client features. No separate API key is needed in the code.
+
+## Setup | Only if the client package is missing
+
+If Imports reports `No module named 'databricks_openai'`, add these two temporary setup cells above Imports in this personal notebook. Keep the 14 benchmark cells unchanged.
+
+**Setup A: install the client packages.** Run this block on its own. This is notebook-scoped, not a cluster-wide installation.
+
+```text
+%pip install databricks-openai==0.17.1 openai==2.26.0
+```
+
+Read the output before continuing. Stop if installation fails, access is blocked, or dependency conflicts are reported. Do not force installation or change production compute settings.
+
+**Setup B: restart Python.** Run this separately, only after Setup A succeeds without conflicts.
+
+```text
+dbutils.library.restartPython()
+```
+
+The restart clears Python variables, not saved evidence files. Continue from **Cell 1 | Imports**, then run each benchmark cell in order. Do not use Run all. Skip this setup when the client is already compatible. A new notebook session may need the packages again.
+
+References: [Databricks notebook-scoped libraries](https://docs.databricks.com/aws/en/libraries/notebooks-python-libraries) and [Databricks OpenAI package](https://pypi.org/project/databricks-openai/0.17.1/).
 
 ## What this batch covers
 
