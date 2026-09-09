@@ -8,9 +8,11 @@ Do not assume access to my screen, repository, files or Databricks. Do not claim
 
 Use [SALES_AI_V2_BENCHMARK.md](SALES_AI_V2_BENCHMARK.md). It contains the complete code in 14 numbered cell blocks. Replace only the matching cells in the existing notebook. Do not create or delete notebooks, rebuild the model, add agents or use **Run all**.
 
-Revision: `v2_readable_client_1`. Experiment: `sales_ai_v2_first12_client_01`. Check these against the code I supply; a link alone is not proof you have read it.
+Revision: `v2_readable_client_2`. Experiment label: `sales_ai_v2_first12_client_01`. Check these against the code I supply; a link alone is not proof you have read it.
 
-The official `DatabricksOpenAI` client uses explicit workspace configuration, no automatic retries and no redirects. It requires compatible `databricks-openai>=0.17` and `openai<3` packages. Do not install or upgrade packages automatically; report a missing or incompatible dependency first.
+Use the installed SDK's `WorkspaceClient.serving_endpoints.get_open_ai_client` helper, with a 180-second timeout, zero automatic retries and a check that redirects remain disabled. No `DatabricksOpenAI` package or installation is required. This helper is deprecated: its use is limited to this existing-runtime proof of concept, not a long-term production recommendation.
+
+The earlier optional installation downgraded Databricks Connect from 18.0.9 to 17.0.10. I authorized removal of the two added notebook dependencies and a reset of the personal environment. Restored versions still need verification. Do not repeat old installation blocks, install packages or assume the environment is restored without its output.
 
 ## Goal and current evidence
 
@@ -18,11 +20,11 @@ Compare the existing wide-table CSM path with the personal booking-view path for
 
 The saved setup has two main agents with the same Finance, Cases, Sales Workspace and CSAL Detail specialists; only the CSM specialist differs. CSM is frozen, while shared sources are live. Underlying-model equality is unverified, so compare the complete setups without claiming the data design alone caused a difference.
 
-I report that all 41 questions gave good answers in the manual UI test. Both endpoint metadata GET checks succeeded. These observations are not a scored, repeated V2 benchmark or proof that the API request works. The original API failure's cause is still unconfirmed, and this client revision has not been verified in Databricks. Do not promise that it fixes the issue or reuse V1 results as V2 evidence.
+I report that all 41 questions gave good answers in the manual UI test. Both endpoint metadata GET checks succeeded, and 41 local code checks passed. None establishes a scored V2 benchmark or live inference success. The original API failure's cause is still unconfirmed. Do not promise that this revision fixes it or reuse V1 results as V2 evidence.
 
 ## Guide one cell at a time
 
-1. Cells **1–2** load imports and settings. Cells **3–6** retain the reference calculations and source/grain checks. Stop at the first error; inspect the exact message and relevant output.
+1. First verify the restored environment versions from my output. Cells **1–2** then load imports/settings; cells **3–6** retain the reference calculations and source/grain checks. Stop at the first error.
 2. Cell **7** saves or loads the personal checkpoint. Cell **8** checks endpoint metadata and prepares the client. Cells **9–11** load the runner and scorer, then run synthetic checks. None sends a benchmark question.
 3. Manually running cell **12** sends one A/B pair by default. Then run cell **13** and use `show_trial` and `record_answer` with actual returned rows. Do not introduce mandatory approval forms or fill answers from the references.
 4. Cell **14** reports the saved evidence. Continue the same client experiment one pair at a time; recorded trials are reused. Missing claims, SQL, source/grain evidence or timing stay explicitly unresolved.
@@ -31,7 +33,7 @@ Keep imports in cell 1. Supply complete replacement code for a specific cell onl
 
 ## Preserve experiments and scope
 
-The new checkpoint is `v2-benchmark-client-evidence.json`. Leave `v2-benchmark-simple-evidence.json` and `v2-benchmark-evidence.json` untouched, including any `UNKNOWN` records. This client experiment is new; it does not resume or reconcile an old API request. Never silently retry an uncertain request or move old trials into the new file.
+The client checkpoint remains `v2-benchmark-client-evidence.json`. Leave `v2-benchmark-simple-evidence.json` and `v2-benchmark-evidence.json` untouched, including any `UNKNOWN` records. This client experiment does not resume or reconcile an old API request. Never silently retry an uncertain request or copy old trials across. If the revised code or client settings mismatch a saved checkpoint, preserve it rather than rewriting its settings.
 
 All **41 questions** remain the target. The prepared subset is **1–7, 15, 18, 20, 23 and 27**: C01–C07, D01, D04, D06, D09 and R01. Three repetitions per agent mean **72 planned trials**, including the first pair. The other 29 still need execution and scoring support; changing the question list alone is insufficient. Question 30 requires two-message handling.
 

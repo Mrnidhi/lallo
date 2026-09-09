@@ -25,21 +25,23 @@ The source data is not one common historical snapshot: CSM is frozen, while shar
 
 [SALES_AI_V2_BENCHMARK.md](SALES_AI_V2_BENCHMARK.md) is the code source: one Markdown file containing all 14 numbered cells. Paste each block into its matching cell in the existing **09-sales-ai-v2-benchmark** notebook. No notebook needs to be created or deleted.
 
-Revision `v2_readable_client_1` keeps the reference calculations, source/grain checks, saved results and restart protection. It uses the official `DatabricksOpenAI` client with an explicit workspace, no automatic retries and no redirects. Compatible `databricks-openai>=0.17` and `openai<3` packages are required; nothing is installed automatically.
+Revision `v2_readable_client_2` uses the installed SDK's `WorkspaceClient.serving_endpoints.get_open_ai_client` helper: a 180-second timeout, zero automatic retries and a check that redirects remain disabled. It needs no additional `DatabricksOpenAI` package or installation. The helper is deprecated; this is a contained proof of concept using the existing runtime, not a long-term production recommendation.
 
-The experiment is `sales_ai_v2_first12_client_01`, saved in `v2-benchmark-client-evidence.json`. Both older evidence files (`v2-benchmark-simple-evidence.json` and `v2-benchmark-evidence.json`) stay untouched, including uncertain requests. This is a new client experiment, not a resumed or reconciled old API call.
+The experiment label remains `sales_ai_v2_first12_client_01`, using `v2-benchmark-client-evidence.json`. Both older evidence files (`v2-benchmark-simple-evidence.json` and `v2-benchmark-evidence.json`) stay untouched, including uncertain requests. Preserve any checkpoint mismatch; do not rewrite saved settings to fit this revision. The client experiment does not resume or reconcile an old API call.
 
 ## Where we stand
 
 The user reports good answers for all 41 questions in a manual UI test. Both endpoint metadata GET checks succeeded, and earlier reference preparation passed. These observations are useful, but there are no verified, scored V2 benchmark results yet.
 
-The original API request failure's cause is still unconfirmed. The client revision has not been verified in Databricks, so it is not a guaranteed fix. A successful metadata check does not prove a question can be submitted successfully; passing reference checks does not certify business policy.
+The earlier optional installation downgraded Databricks Connect from 18.0.9 to 17.0.10. With the user's approval, the two added notebook dependencies were removed and the personal environment was reset. Restored package versions still need verification; do not repeat the old installation blocks.
+
+All 41 local code checks passed. No live inference success has been verified. The original API failure's cause remains unconfirmed, and this revision is not a guaranteed fix. Metadata success does not prove inference works; reference checks do not certify business policy.
 
 ## What remains
 
 All **41 questions** remain the target.
 
-1. Paste the 14 code blocks into the matching cells. Run imports/settings in cells 1–2 and reference checks in cells 3–6 individually, stopping on errors.
+1. Verify the restored environment versions first. Then paste the 14 code blocks into the matching cells and run cells 1–6 individually, stopping on errors.
 2. Save the personal checkpoint in cell 7, check metadata and prepare the client in cell 8, then load the runner/scorer and run synthetic tests in cells 9–11.
 3. Run cell 12 for one A/B pair by default. In cell 13, inspect `show_trial` and record actual rows with `record_answer`; no mandatory approval form is needed.
 4. Use cell 14 to inspect the evidence, then continue the same experiment one pair at a time. The prepared questions are **1–7, 15, 18, 20, 23 and 27**: 12 questions, three repetitions per agent, **72 planned trials** including the first pair.

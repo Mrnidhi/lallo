@@ -1,8 +1,8 @@
 # Sales AI V2 benchmark
 
-Revision: `v2_readable_client_1`
+Revision: `v2_readable_client_2`
 
-**Execution paused:** the package setup changed a core Databricks connection library. Do not rerun setup or continue the benchmark until the personal notebook environment is corrected.
+**Before running:** use the original notebook environment with no added client packages. Cell 1 displays installed versions. Do not rerun the retired package installation.
 
 We are comparing the existing personal wide-table agent with the personal booking-scope agent. The tables and agents are already built. This notebook checks their answers; it does not redesign or modify production.
 
@@ -19,19 +19,21 @@ Do not use **Run all**. If a cell fails, stop at that cell. Do not delete an evi
 
 ## What changed
 
-The custom HTTP request code is replaced by Databricks' supported Responses client. Retries are disabled, each question starts fresh, and failed requests retain their error type, failing step and elapsed time. One function records actual answers. The existing data checks, reference calculations and numeric scoring rules remain in place.
+The client now comes from the Databricks SDK already installed in the notebook. No additional package is needed. Retries are disabled, each question starts fresh, and failed requests retain their error type, failing step and elapsed time. One function records actual answers. The existing data checks, reference calculations and numeric scoring rules remain in place.
 
 This is a **new client experiment**, not a recovery of the earlier uncertain request. It saves to `v2-benchmark-client-evidence.json` in your personal workspace. Leave `v2-benchmark-simple-evidence.json` and `v2-benchmark-evidence.json` unchanged. Earlier failures remain part of the project history, not evidence of successful runs.
 
-Use an existing compatible notebook environment: `databricks-openai` 0.17 or later, with a supported `openai` version below 3. Cell 8 checks the installed client features. No separate API key is needed in the code.
+Use the existing Databricks SDK, OpenAI and HTTPX libraries. Cell 8 checks that the installed SDK helper, Responses support and no-redirect behavior are available. This helper is deprecated in newer SDK documentation; we are using it as a contained compatibility option for this POC, not a recommendation for a new production integration. No separate API key is needed.
 
-## Setup | Compatibility issue found
+## Recovering from the earlier package setup
 
 Imports initially failed because `databricks_openai` was missing. Installing `databricks-openai==0.17.1` with `openai==2.26.0` completed, but Databricks reported that `databricks-connect` changed from `18.0.9` to `17.0.10`. That is a core runtime compatibility warning, not a successful benchmark check.
 
 Execution stopped before Python restart or any further benchmark cell. The change is notebook-scoped. Production objects and saved evidence were not modified.
 
-Do not repeat that installation, restart Python, force dependency resolution, or delete evidence to continue. The next step is to agree on restoring the original personal notebook environment and adapting the client to compatible existing libraries. The 14 code blocks below are preserved for reference; the current client setup is not cleared for execution.
+Do not repeat that installation, force dependency resolution or delete evidence. The agreed recovery is to disable only the temporary installation cell, remove its two added dependencies from this personal notebook's Configuration panel, and apply the original base environment. Restarting Python alone does not undo installed packages. Keep all saved evidence files.
+
+The original observed versions were `databricks-connect 18.0.9` and `openai 2.14.0`. After recovery, run the updated Imports cell and check its printed versions before continuing. Cells 1, 2 and 8 have changed; replace those three blocks in the existing notebook, then rerun preparation individually. The experiment name and evidence path are unchanged. If an existing checkpoint conflicts with the new code fingerprint, stop and inspect it; do not overwrite it.
 
 References: [Databricks notebook-scoped libraries](https://docs.databricks.com/aws/en/libraries/notebooks-python-libraries) and [Databricks OpenAI package](https://pypi.org/project/databricks-openai/0.17.1/).
 
@@ -72,10 +74,10 @@ import tempfile
 import time
 
 from databricks.sdk import WorkspaceClient
-from databricks_openai import DatabricksOpenAI
 from pyspark.sql import functions as F, types as T
 
 V2_BENCHMARK_READY = False
+print("Installed packages:", {name: package_version(name) for name in ("databricks-connect", "openai", "databricks-sdk", "httpx")})
 print("Imports ready. Next: cell 2, settings.")
 ```
 
@@ -118,7 +120,7 @@ DAILY_OUTLOOK_TASK = "DAILY_OUTLOOK"  # Verify the task_name value, not delivera
 QUESTION_IDS = ["C01", "C02", "C03", "C04", "C05", "C06", "C07", "D01", "D04", "D06", "D09", "R01"]
 REPETITIONS = 3
 WORDING_VERSION = "v2_question_wording_2"
-CODE_VERSION = "v2_readable_client_1"
+CODE_VERSION = "v2_readable_client_2"
 EXPERIMENT_LABEL = "sales_ai_v2_first12_client_01"
 
 # Leave these empty to select usable examples within each source.
@@ -908,7 +910,7 @@ print("Setup saved. Next: run cells 8-11. No agent question was sent.")
 
 ## Cell 8 | Check both agent connections
 
-Prepare the supported client and read endpoint details. This does not send a benchmark question.
+Prepare the existing SDK client and read endpoint details. This does not send a benchmark question.
 
 ```python
 # Cell 8 | Check both agent connections
@@ -916,13 +918,10 @@ Prepare the supported client and read endpoint details. This does not send a ben
 
 AGENT_CLIENT = None
 AGENT_CLIENT_SETTINGS = None
-assert globals().get("DatabricksOpenAI") is not None, "Run cell 1 first. The databricks-openai package must be available."
-CLIENT_PACKAGES = {name: package_version(name) for name in ("databricks-openai", "openai", "databricks-sdk")}
+assert globals().get("WorkspaceClient") is not None, "Run cell 1 first."
+CLIENT_PACKAGES = {name: package_version(name) for name in ("openai", "databricks-sdk", "httpx")}
 print("Client packages:", CLIENT_PACKAGES)
-assert "follow_redirects" in inspect.signature(DatabricksOpenAI).parameters, (
-    "This client needs databricks-openai 0.17 or later. Share the installed version before changing packages."
-)
-assert int(CLIENT_PACKAGES["openai"].split(".")[0]) < 3, "This Databricks integration requires OpenAI below version 3. No question was sent."
+assert int(CLIENT_PACKAGES["openai"].split(".")[0]) < 3, "This compatibility path expects OpenAI below version 3. No question was sent."
 CLIENT = WorkspaceClient()
 
 
@@ -958,8 +957,11 @@ def request_client_settings():
     validate_request_settings()
     assert CLIENT.config.host.rstrip("/") + "/serving-endpoints" == AGENT_BASE_URL, "Workspace host changed. Stop this run."
     assert AGENT_CLIENT.timeout == HTTP_TIMEOUT_SECONDS, "Client timeout differs from the notebook setting."
+    # Inspect the private transport only to verify redirects are disabled; do not change its configuration.
+    redirects = getattr(getattr(AGENT_CLIENT, "_client", None), "follow_redirects", None)
+    assert redirects is False, "Cannot verify that client redirects are disabled. No question was sent."
     return {"base_url": str(AGENT_CLIENT.base_url).rstrip("/"), "timeout_seconds": AGENT_CLIENT.timeout,
-            "max_retries": AGENT_CLIENT.max_retries,
+            "max_retries": AGENT_CLIENT.max_retries, "follow_redirects": redirects,
             "packages": {name: package_version(name) for name in CLIENT_PACKAGES}}
 
 
@@ -987,14 +989,17 @@ address = urlsplit(host)
 assert (address.scheme == "https" and address.hostname and not address.username and not address.password
         and not address.path and not address.query and not address.fragment), "The workspace URL is not valid."
 AGENT_BASE_URL = host + "/serving-endpoints"
-AGENT_CLIENT = DatabricksOpenAI(workspace_client=CLIENT, base_url=AGENT_BASE_URL, use_ai_gateway=False,
-                              follow_redirects=False, timeout=HTTP_TIMEOUT_SECONDS, max_retries=0)
-assert callable(getattr(getattr(AGENT_CLIENT.responses, "with_raw_response", None), "create", None)), "The installed client does not support Responses."
+assert callable(getattr(CLIENT.serving_endpoints, "get_open_ai_client", None)), (
+    "The installed workspace SDK does not provide the existing-client helper. Share the versions above before changing packages."
+)
+# This deprecated helper preserves runtime compatibility for the isolated POC, not a new production integration.
+AGENT_CLIENT = CLIENT.serving_endpoints.get_open_ai_client(timeout=HTTP_TIMEOUT_SECONDS, max_retries=0)
+assert callable(getattr(getattr(getattr(AGENT_CLIENT, "responses", None), "with_raw_response", None), "create", None)), "The installed client does not support Responses."
 AGENT_CLIENT_SETTINGS = request_client_settings()
 assert AGENT_CLIENT_SETTINGS["base_url"] == AGENT_BASE_URL and AGENT_CLIENT_SETTINGS["max_retries"] == 0
 assert AGENT_CLIENT_SETTINGS["timeout_seconds"] == HTTP_TIMEOUT_SECONDS
 ENDPOINT_IDENTITIES = {arm: endpoint_identity(arm) for arm in ENDPOINTS}
-print("Both connections are ready. Retries and redirects are disabled. No question was sent.")
+print("Both connections are ready. Automatic retries are disabled. No question was sent.")
 print("Next: run cells 9, 10 and 11. Cell 12 sends the first A/B pair.")
 ```
 
