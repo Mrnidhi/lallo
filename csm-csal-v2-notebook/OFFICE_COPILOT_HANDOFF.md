@@ -20,14 +20,16 @@ Compare the existing wide-table CSM path with the personal booking-view path for
 
 The saved setup has two main agents with the same Finance, Cases, Sales Workspace and CSAL Detail specialists; only the CSM specialist differs. CSM is frozen, while shared sources are live. Underlying-model equality is unverified, so compare the complete setups without claiming the data design alone caused a difference.
 
-I report that all 41 questions gave good answers in the manual UI test. Notebook cells 1–6 passed, cell 8 confirmed both connections are ready, cells 9–10 loaded, and all 40 synthetic checks in cell 11 passed. The 41 local code checks also passed. The new checkpoint still needs transfer; no agent question has been sent in this experiment. The original API failure's cause remains unconfirmed. Do not treat these checks as scored benchmark results or reuse V1 results as V2 evidence.
+I report that all 41 questions gave good answers in the manual UI test. Notebook cells 1–6 passed, cell 8 confirmed both connections are ready, cells 9–10 loaded, and all 40 synthetic checks in cell 11 passed. The 41 local code checks also passed.
+
+The updated settings and cell 7 ran successfully, creating and reading back the client2 evidence file. Cell 12 ran exactly once and saved both C01 repetition 1 responses. Cell 14 recorded **A: 35.40 seconds; B: 37.77 seconds**, one timed run each, with **zero answers evaluated**. The first batch remains incomplete. No request was repeated, no production objects changed, and prior evidence was preserved. The original failure's cause remains unconfirmed; do not infer accuracy from response success or reuse V1 results as V2 evidence.
 
 ## Guide one cell at a time
 
-1. Transfer the new settings and checkpoint blocks (cells **2 and 7**) into the existing notebook. Keep every previous evidence file unchanged.
-2. Run cell **7** to save the separate experiment. If preparation is stale, refresh the required cells. Runtime, connection and synthetic scorer checks have already passed; no benchmark question has been sent.
-3. Manually running cell **12** sends one A/B pair by default. Then run cell **13** and use `show_trial` and `record_answer` with actual returned rows. Do not introduce mandatory approval forms or fill answers from the references.
-4. Cell **14** reports the saved evidence. Continue the same client experiment one pair at a time; recorded trials are reused. Missing claims, SQL, source/grain evidence or timing stay explicitly unresolved.
+1. Start with cell **13** and `show_trial('C01', 'A', 1)`, then the same call for B. Read the saved responses; do not send new requests to recover them.
+2. Use `record_answer` with actual returned rows, not reference rows. Check the answer claims, SQL and source/grain evidence; leave unavailable checks unresolved.
+3. Cell **14** updates the comparison from saved evidence. Review that first pair before running cell **12** again.
+4. Continue one A/B pair at a time. Recorded trials are reused; never reset an uncertain request or claim that one timed pair proves an improvement.
 
 Keep imports in cell 1. Supply complete replacement code for a specific cell only when needed, explain the expected output, then wait. Do not generate several speculative fixes at once.
 

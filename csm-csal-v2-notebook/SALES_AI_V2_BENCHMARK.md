@@ -25,13 +25,15 @@ This is a **new client experiment**, not a recovery of the earlier uncertain req
 
 Use the existing Databricks SDK, OpenAI and HTTPX libraries. Cell 8 checks that the installed SDK helper, Responses support and no-redirect behavior are available. This helper is deprecated in newer SDK documentation; we are using it as a contained compatibility option for this POC, not a recommendation for a new production integration. No separate API key is needed.
 
-## Recovering from the earlier package setup
+## Current run
 
 The original notebook environment has been restored and verified: Databricks Connect `18.0.9`, OpenAI `2.14.0`, Databricks SDK `0.67.0` and HTTPX `0.28.1`. Do not run the retired installation blocks or add packages.
 
-Cells 1–6 passed. Cell 8 confirmed both connections are ready, cells 9–10 loaded, and all 40 synthetic scorer checks in cell 11 passed. No agent question has been sent in this new experiment.
+Cells 1–6 passed. Cell 8 confirmed both connections are ready, cells 9–10 loaded, and all 40 synthetic scorer checks in cell 11 passed. The updated settings and cell 7 ran successfully; the separate client2 evidence file was created and read back.
 
-Next, transfer the new settings and checkpoint blocks (cells 2 and 7) and create the separate results file. If preparation is stale, rerun the required preparation cells. If a checkpoint already exists at the new path and conflicts with the current setup, stop and inspect it; do not overwrite it. Production objects and prior evidence remain unchanged.
+Cell 12 ran exactly once. Both C01 repetition 1 responses were saved. Cell 14 recorded **35.40 seconds for A** and **37.77 seconds for B**, with one timed run each and **zero answers evaluated**. These are client response times, not SQL durations or proof of accuracy. The first 12-question batch is still incomplete.
+
+Next, inspect the saved C01 responses in cell 13 and record their actual rows and checked claims, SQL and source/grain evidence before sending another pair. Do not copy expected rows into the actual answers. No request was repeated, production was unchanged, and all previous evidence files were preserved.
 
 References: [Databricks notebook-scoped libraries](https://docs.databricks.com/aws/en/libraries/notebooks-python-libraries) and [Databricks OpenAI package](https://pypi.org/project/databricks-openai/0.17.1/).
 

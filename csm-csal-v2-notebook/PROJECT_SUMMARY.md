@@ -31,21 +31,22 @@ The new experiment label is `sales_ai_v2_first12_client_02`, using `v2-benchmark
 
 ## Where we stand
 
-The user reports good answers for all 41 questions in a manual UI test. In the notebook, cells 1–6 passed, cell 8 confirmed both connections are ready, cells 9–10 loaded, and cell 11 passed all 40 synthetic scorer checks. No question has been sent in this new experiment, and there are no verified, scored V2 benchmark results yet.
+The user reports good answers for all 41 questions in a manual UI test. In the notebook, cells 1–6 passed, cell 8 confirmed both connections are ready, cells 9–10 loaded, and cell 11 passed all 40 synthetic scorer checks.
 
 The original environment is restored and verified: Databricks Connect `18.0.9`, OpenAI `2.14.0`, Databricks SDK `0.67.0` and HTTPX `0.28.1`. Do not run the retired installation blocks or add packages.
 
-All 41 local code checks passed. No live inference success has been verified. The original API failure's cause remains unconfirmed, and this revision is not a guaranteed fix. Metadata success does not prove inference works; reference checks do not certify business policy.
+The updated settings and cell 7 ran successfully, creating and reading back the separate client2 evidence file. Cell 12 ran exactly once and saved both C01 repetition 1 responses. Cell 14 recorded client response times of **35.40 seconds for A** and **37.77 seconds for B**, one timed run each. **Zero answers have been evaluated**, so no accuracy result is available and the first batch is incomplete.
+
+All 41 local code checks passed. These first live requests succeeded, but the original API failure's cause remains unconfirmed. No request was repeated, production was unchanged, and all earlier evidence was preserved.
 
 ## What remains
 
 All **41 questions** remain the target.
 
-1. Transfer the new settings and checkpoint blocks (cells 2 and 7). Preserve the previous results files.
-2. Run cell 7 to save the separate experiment. If preparation is stale, refresh the required cells. The existing runtime, connections and scorer have already passed their checks.
-3. Run cell 12 for one A/B pair by default. In cell 13, inspect `show_trial` and record actual rows with `record_answer`; no mandatory approval form is needed.
-4. Use cell 14 to inspect the evidence, then continue the same experiment one pair at a time. The prepared questions are **1–7, 15, 18, 20, 23 and 27**: 12 questions, three repetitions per agent, **72 planned trials** including the first pair.
-5. Add execution and scoring support for the remaining 29 in the same notebook. Question 30 needs two-message handling. Keep clarification, limitation and pending outcomes separate from numerical accuracy.
+1. In cell 13, inspect the saved C01 responses with `show_trial`. Do not ask either agent the same question again to obtain evidence.
+2. Record actual rows with `record_answer`, then check the claims, SQL and source/grain evidence. Never copy expected answers into the actual results.
+3. Use cell 14 to inspect the comparison before sending another pair. The prepared questions are **1–7, 15, 18, 20, 23 and 27**: 12 questions, three repetitions per agent, **72 planned trials** including the first pair.
+4. Add execution and scoring support for the remaining 29 in the same notebook. Question 30 needs two-message handling. Keep clarification, limitation and pending outcomes separate from numerical accuracy.
 
 The complete target is **246 question-level evaluations**, plus additional message turns for question 30. It is not completed or fully supported work. Preserve first-batch evidence when extending the plan, and never silently resend uncertain requests.
 

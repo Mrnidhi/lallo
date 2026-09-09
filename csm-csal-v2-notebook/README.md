@@ -10,11 +10,13 @@ The new label is `sales_ai_v2_first12_client_02`, using `v2-benchmark-client2-ev
 
 The original environment is restored and verified: Databricks Connect `18.0.9`, OpenAI `2.14.0`, Databricks SDK `0.67.0` and HTTPX `0.28.1`. Do not run the retired installation blocks or add packages.
 
-Cells 1–6 passed, cell 8 confirmed both connections are ready, cells 9–10 loaded, and all 40 synthetic checks in cell 11 passed. Next: transfer cells 2 and 7 for the separate results file. No agent question has been sent in this new experiment.
+Cells 1–6 passed, cell 8 confirmed both connections are ready, cells 9–10 loaded, and all 40 synthetic checks in cell 11 passed. The updated settings and cell 7 ran successfully; the client2 evidence file was created and read back.
+
+Cell 12 ran exactly once and saved both C01 repetition 1 responses. Cell 14 recorded **A: 35.40 seconds; B: 37.77 seconds**, one timed run each and **zero answers evaluated**. Next: inspect the saved responses and record actual rows, claims, SQL and source/grain checks before another pair. No request was repeated; prior evidence and production remain unchanged.
 
 The standalone notebook scripts and old troubleshooting instructions have been replaced by this single code document. Earlier Git versions remain recoverable from history. Databricks notebooks, tables, agents and saved results were not deleted.
 
-The full target remains 41 questions. This revision has 12 prepared questions and 72 planned runs; the other 29 still need scoring support. All 41 local code checks passed. No live inference success is verified, and the original API failure's cause remains unconfirmed.
+The full target remains 41 questions. This revision has 12 prepared questions and 72 planned runs; the other 29 still need scoring support. All 41 local code checks passed. The first pair was received but not evaluated, so the batch is incomplete and no accuracy claim is justified. The original API failure's cause remains unconfirmed.
 
 ## Supporting documents
 
