@@ -6,7 +6,7 @@ This is a sharing copy of the existing 41-question bank. The numbered questions 
 
 The first 12 reference calculations were cross-checked in the earlier session. Saved main-agent instruction text and visible specialist mappings were also checked then. The simplified runner has passed local tests but has not been run in Databricks. No V2 benchmark result is verified. See [Project summary](PROJECT_SUMMARY.md) and [the manual run guide](README.md) for the current handoff.
 
-**For the first benchmark, use the notebook's `PROMPTS`, not just the numbered sentences below.** Cell 6 adds the fixed sorting, rounding and missing-value instructions from [31_questions_and_review.py](31_questions_and_review.py). Actual customer, agreement and representative values stay in the office notebook. Do not give either tested agent the reference answers or reference SQL.
+**For the first benchmark, use the notebook's `PROMPTS`, not just the numbered sentences below.** Cell 6 in [the revised benchmark notebook](SALES_AI_V2_BENCHMARK.md) adds the fixed sorting, rounding and missing-value instructions. Actual customer, agreement and representative values stay in the office notebook. Do not give either tested agent the reference answers or reference SQL.
 
 The user has now requested coverage of **all 41 questions**. The current runner's first batch remains **1–7, 15, 18, 20, 23 and 27**: C01–C07, D01, D04, D06, D09 and R01. It is not questions 1–12. The other 29 require appropriate reference contracts, limitation rubrics or multi-turn handling before execution. Do not label the 72-run subset as the complete benchmark.
 

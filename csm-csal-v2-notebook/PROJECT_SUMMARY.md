@@ -21,28 +21,32 @@ Both use the same four shared specialists for finance, cases, sales workspace in
 
 The source data is not one common historical snapshot: CSM is frozen, while shared sources are live. Databricks manages the underlying models, and model equality is unverified. Results must compare the complete setups, not attribute every difference to the data design alone.
 
-## What is simpler now
+## One readable notebook handoff
 
-Use the same **09-sales-ai-v2-benchmark** notebook, with the same 14 files and cells.
+[SALES_AI_V2_BENCHMARK.md](SALES_AI_V2_BENCHMARK.md) is the code source: one Markdown file containing all 14 numbered cells. Paste each block into its matching cell in the existing **09-sales-ai-v2-benchmark** notebook. No notebook needs to be created or deleted.
 
-The new `v2_simple_runner_1` revision removes manual review flags, enabling switches and request-schema setup. Cell 7 automatically checks preparation and source versions, then saves or resumes the separate `v2-benchmark-simple-evidence.json` checkpoint. The old evidence file is not deleted or reused for this new experiment.
+Revision `v2_readable_client_1` keeps the reference calculations, source/grain checks, saved results and restart protection. It uses the official `DatabricksOpenAI` client with an explicit workspace, no automatic retries and no redirects. Compatible `databricks-openai>=0.17` and `openai<3` packages are required; nothing is installed automatically.
 
-Both request formats are preconfigured from observed endpoint examples. Cell 8 checks Ready endpoints without OpenAPI discovery. Manually running cell 12 sends at most one A/B pair. Saved trials are reused on continuation. Cell 13 helps record actual returned answers; cell 14 shows the comparison without inventing missing SQL or timing.
+The experiment is `sales_ai_v2_first12_client_01`, saved in `v2-benchmark-client-evidence.json`. Both older evidence files (`v2-benchmark-simple-evidence.json` and `v2-benchmark-evidence.json`) stay untouched, including uncertain requests. This is a new client experiment, not a resumed or reconciled old API call.
 
-Earlier reference-answer preparation passed its checks. This simplified revision passed local regression and synthetic scoring tests but still needs a verified Databricks run. There are no verified V2 benchmark results to report. Automatic checks do not establish business correctness.
+## Where we stand
+
+The user reports good answers for all 41 questions in a manual UI test. Both endpoint metadata GET checks succeeded, and earlier reference preparation passed. These observations are useful, but there are no verified, scored V2 benchmark results yet.
+
+The original API request failure's cause is still unconfirmed. The client revision has not been verified in Databricks, so it is not a guaranteed fix. A successful metadata check does not prove a question can be submitted successfully; passing reference checks does not certify business policy.
 
 ## What remains
 
 All **41 questions** remain the target.
 
-1. Replace the matching cells, run preparation individually and inspect the reference logic.
-2. Save the simple checkpoint, check endpoints and run the scorer tests.
-3. Run one pair and inspect both original answers and available SQL.
-4. Complete the unchanged first 12 questions, three times per agent: **72 trials**, including that first pair.
+1. Paste the 14 code blocks into the matching cells. Run imports/settings in cells 1–2 and reference checks in cells 3–6 individually, stopping on errors.
+2. Save the personal checkpoint in cell 7, check metadata and prepare the client in cell 8, then load the runner/scorer and run synthetic tests in cells 9–11.
+3. Run cell 12 for one A/B pair by default. In cell 13, inspect `show_trial` and record actual rows with `record_answer`; no mandatory approval form is needed.
+4. Use cell 14 to inspect the evidence, then continue the same experiment one pair at a time. The prepared questions are **1–7, 15, 18, 20, 23 and 27**: 12 questions, three repetitions per agent, **72 planned trials** including the first pair.
 5. Add execution and scoring support for the remaining 29 in the same notebook. Question 30 needs two-message handling. Keep clarification, limitation and pending outcomes separate from numerical accuracy.
 
-The complete plan is **246 question-level evaluations** across both agents and three repetitions, with additional message turns for question 30. That is a target, not completed or fully supported work. Preserve first-batch evidence separately when adding the larger plan.
+The complete target is **246 question-level evaluations**, plus additional message turns for question 30. It is not completed or fully supported work. Preserve first-batch evidence when extending the plan, and never silently resend uncertain requests.
 
-Enrichment, historical threshold calibration and swap scoring remain parked. No new production tables, agents or framework are needed to start the first pair.
+Production, enrichment, historical threshold calibration and swap scoring remain unchanged. Missing SQL, claim checks, source/grain evidence and timing must remain unavailable or incomplete, not invented.
 
-Next: follow the [short run guide](README.md). Use [cell 7 help](CHECK_CELL_7.md) only if it stops. The [Copilot handoff](OFFICE_COPILOT_HANDOFF.md) keeps the full 41-question goal explicit.
+Next: use [the cell-by-cell code](SALES_AI_V2_BENCHMARK.md). The [Copilot Chat handoff](OFFICE_COPILOT_HANDOFF.md) is for advice and code suggestions only; the user manually pastes and runs each cell and shares the actual output.

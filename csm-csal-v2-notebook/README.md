@@ -1,60 +1,18 @@
-# Sales AI V2: a simpler manual run
+# Sales AI V2 benchmark
 
-Use the existing **09-sales-ai-v2-benchmark** notebook and its same 14 cells. Replace each cell with the matching file below. Keep the completed build notebook unchanged. Use only the approved office session. Do not use **Run all**.
+Start with [SALES_AI_V2_BENCHMARK.md](SALES_AI_V2_BENCHMARK.md). It contains the complete revised notebook, one Python block per cell.
 
-[Project summary](PROJECT_SUMMARY.md) · [All 41 questions](question_bank.md) · [Diagrams](OBSIDIAN_PRODUCTION_AND_V2.md) · [Copilot Chat instructions](OFFICE_COPILOT_HANDOFF.md)
+Use the existing personal **09-sales-ai-v2-benchmark** notebook. Run cells individually. Cell 12 sends one A/B pair by default; cell 13 records the actual answers and cell 14 shows the comparison.
 
-Copilot Chat is a code helper: it suggests changes and explains outputs. You paste and run the cells. It is separate from the two Databricks agents being tested.
+Revision: `v2_readable_client_1`. This uses a separate `v2-benchmark-client-evidence.json` file. Do not delete either earlier evidence file or treat the new run as recovery of the old uncertain request.
 
-## What changed
+The standalone notebook scripts and old troubleshooting instructions have been replaced by this single code document. Earlier Git versions remain recoverable from history. Databricks notebooks, tables, agents and saved results were not deleted.
 
-**Next connection check:** copy [check_agent_connection.py](troubleshooting/check_agent_connection.py) into a temporary Python cell at the bottom of the existing notebook. Run only that cell and share its two output lines. It compares SDK and direct HTTP reads of Agent A's connection metadata, using the existing notebook session. It does not send a business question or change tables, settings or saved evidence. Do not rerun cell 12 or use Run all, even if both checks say `OK`. Successful metadata reads do not prove the original agent request worked; SDK retries also mean these timings are not a speed benchmark.
+The full target remains 41 questions. This revision has 12 prepared questions and 72 planned runs; the other 29 still need scoring support. Local tests passed. A live run of the revised client is still pending.
 
-**If cell 12 says “Request completion is uncertain”:** do not rerun it or use Run all. Copy [check_cell_12.py](troubleshooting/check_cell_12.py) into a temporary Python cell at the bottom of the existing notebook. Run only that cell and share its status output. It reads the checkpoint without sending a request, changing evidence or printing answer rows. This diagnostic is not a fix or a replacement for cell 12.
+## Supporting documents
 
-The updated diagnostic also prints the saved timeout setting and UTC start/end times. Replace the earlier diagnostic cell with this version. These timestamps help check the waiting interval; they are not SQL execution times.
-
-This revision removes manual review flags, enabling switches and request-schema setup. Cell 7 checks preparation and source versions automatically, then saves or resumes a separate checkpoint: `v2-benchmark-simple-evidence.json`. It leaves `v2-benchmark-evidence.json` untouched.
-
-Code version: `v2_simple_runner_1`. Experiment: `sales_ai_v2_first12_simple_01`. Both request formats are set to `input`, matching observed endpoint Python examples. Cell 8 checks Ready endpoints without OpenAPI discovery.
-
-Questions, reference calculations, ordering, precision and scoring intent are unchanged. Automatic checks do not establish business correctness.
-
-## Replace the matching cells
-
-Use **Copy raw file**. Preserve deliberately selected source settings before replacing cell 2.
-
-| Cell | File | Purpose |
-|---:|---|---|
-| 1 | [26_imports.py](26_imports.py) | Imports |
-| 2 | [27_settings.py](27_settings.py) | Sources and settings |
-| 3 | [28_source_checks.py](28_source_checks.py) | Source checks |
-| 4 | [29_booking_ground_truth.py](29_booking_ground_truth.py) | Booking reference answers |
-| 5 | [30_shared_ground_truth.py](30_shared_ground_truth.py) | Shared-domain reference answers |
-| 6 | [31_questions_and_review.py](31_questions_and_review.py) | Exact prompts and references |
-| 7 | [32_freeze_and_checkpoint.py](32_freeze_and_checkpoint.py) | Check and save the setup |
-| 8 | [33_endpoint_adapter.py](33_endpoint_adapter.py) | Check endpoints |
-| 9 | [34_paired_runner.py](34_paired_runner.py) | Load runner |
-| 10 | [35_scoring_helpers.py](35_scoring_helpers.py) | Load scoring |
-| 11 | [36_scoring_self_tests.py](36_scoring_self_tests.py) | Synthetic scorer checks |
-| 12 | [37_run_approved_batch.py](37_run_approved_batch.py) | Send one pair |
-| 13 | [38_review_recorded_answers.py](38_review_recorded_answers.py) | Inspect and record returned answers |
-| 14 | [39_results_and_handoff.py](39_results_and_handoff.py) | Show report |
-
-Existing filenames are retained; no additional notebook or framework is needed.
-
-## Run, inspect, continue
-
-1. Run **cells 1–6 individually**, stopping at the first error. Cell 2 initializes settings; do not rerun its defaults casually. After cell 6, use `show_reference("C01")` to inspect a prompt, reference rows and SQL. Check the reference logic; keep those rows private.
-2. Run **cell 7**. It validates preparation, checks sources and saves or resumes the simple checkpoint. No manual approval assignments are needed. If the saved setup differs, preserve the file and investigate; do not delete evidence. See [cell 7 help](CHECK_CELL_7.md).
-3. Run **cells 8–11** individually. They check connections and load/test helpers without sending benchmark questions.
-4. Manually run **cell 12 once**. It sends at most **two trials: one question through both agents**. Run cell 13, then inspect `show_trial("C01", "A", 1)` and `show_trial("C01", "B", 1)`. Use its `record_answer` template for actual returned rows and notes. Detailed review is optional. Never substitute reference rows or invented SQL.
-5. Run **cell 14** to see the saved comparison. Missing SQL, timing or unchecked answers remain unavailable or incomplete. Repeat cell 12 to continue one pair at a time; saved trials are reused. Investigate uncertain requests before resending anything.
-
-## Full scope and limits
-
-All **41 questions** remain the target. This runner supports only the unchanged first **12**: **1–7, 15, 18, 20, 23 and 27**. Three repetitions per agent make **72 trials**, including the first pair. The remaining 29 need execution and scoring support; changing the question list alone is insufficient. Question 30 needs two-message handling.
-
-Keep both arms’ full prompts, sources and settings comparable. Never send reference answers or scoring notes to tested agents. This compares managed setups, not proven identical underlying models. Production, enrichment, thresholds and swap scoring stay unchanged.
-
-Local regression and synthetic scoring tests passed. Cell 11 passed its 40 scorer checks in the supplied screenshot. The diagnostic then confirmed `TimeoutError` for Agent A, question C01, with state `UNKNOWN`. Its cause and the server's outcome are not yet verified. Keep generated answers and checkpoint files out of Git.
+- [Project goal and current position](PROJECT_SUMMARY.md)
+- [All 41 business questions](question_bank.md)
+- [Production and V2 diagrams](OBSIDIAN_PRODUCTION_AND_V2.md)
+- [Copilot Chat handoff](OFFICE_COPILOT_HANDOFF.md)
