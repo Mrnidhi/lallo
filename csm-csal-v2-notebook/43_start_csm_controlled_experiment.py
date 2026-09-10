@@ -55,6 +55,7 @@ MANIFEST = {
     "fixtures": {"lookup": base_manifest["fixtures"]["lookup"]}, "reference_sha256": None,
     "repetitions": 3, "reference_status": "CALCULATIONS_CROSS_CHECKED_NOT_BUSINESS_SIGNED_OFF",
     "session_timezone": base_manifest["session_timezone"],
+    "limitations": base_manifest["limitations"],
     "experiment_note": "Separate CSM-only controlled experiment derived from routing1; prior evidence is unchanged.",
 }
 QUESTION_IDS = CSM_QUESTION_IDS
