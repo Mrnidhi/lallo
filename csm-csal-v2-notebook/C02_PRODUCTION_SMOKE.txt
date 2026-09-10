@@ -1,0 +1,1 @@
+For week 2026WK22 and service PVCS, show the 20 customer, agreement and TCR combinations marked as low booking. Include confirmed TEU, booked TEU and total reviewed commitment, with the lowest confirmed utilization first.
