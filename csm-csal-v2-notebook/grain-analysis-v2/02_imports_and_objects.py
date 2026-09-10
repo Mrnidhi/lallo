@@ -19,6 +19,17 @@ ALLOCATION_FACT = PERSONAL_SCHEMA + ".fact_allocation_poc_v2_v23"
 BOOKING_VIEW = PERSONAL_SCHEMA + ".agent_booking_risk_current_poc_v2_v23"
 
 BOOKING_GRAIN = ["customer", "agreement", "week_num", "service", "tcr"]
+COMMITMENT_GRAIN = ["customer", "agreement", "week_num", "service"]
+ALLOCATION_GRAIN = [
+    "month",
+    "week_num",
+    "customer",
+    "sales_rep",
+    "agreement",
+    "tcr",
+    "service",
+    "category",
+]
 
 GRAIN_OBJECTS = [
     {
@@ -32,21 +43,21 @@ GRAIN_OBJECTS = [
         "order": 2,
         "name": "Booking fact",
         "table": BOOKING_FACT,
-        "grain_columns": ["booking_scope_key"],
+        "grain_columns": BOOKING_GRAIN,
         "row_meaning": "Customer + agreement + week + service + TCR",
     },
     {
         "order": 3,
         "name": "Commitment fact",
         "table": COMMITMENT_FACT,
-        "grain_columns": ["commitment_scope_key"],
+        "grain_columns": COMMITMENT_GRAIN,
         "row_meaning": "Customer + agreement + week + service",
     },
     {
         "order": 4,
         "name": "Allocation fact",
         "table": ALLOCATION_FACT,
-        "grain_columns": ["allocation_slice_key"],
+        "grain_columns": ALLOCATION_GRAIN,
         "row_meaning": "One detailed allocation slice",
     },
     {
