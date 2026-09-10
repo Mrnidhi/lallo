@@ -56,6 +56,34 @@ The dimensions cover:
 
 I then created a 29-column booking view for the agent. It combines the booking and commitment information with the five dimensions needed for booking questions.
 
+#### What the fact tables contain
+
+A fact table mainly holds the numbers we want to measure. The examples below show the useful business columns, not every technical audit field.
+
+| Fact table | Sample columns | Simple meaning |
+|---|---|---|
+| `fact_booking_summary_poc_v2_v23` | customer, agreement, week, service, TCR, confirmed TEU, cancelled TEU, rejected TEU, booked TEU and the current risk flags | What happened to booking demand at one booking scope |
+| `fact_commitment_poc_v2_v23` | customer, agreement, week, service and total reviewed TEU | The reviewed commitment stored once at its correct level |
+| `fact_allocation_poc_v2_v23` | month, week, customer, sales representative, agreement, TCR, service, category, original TEU, reviewed TEU and final TEU | The detailed allocation position used for allocation analysis |
+
+#### What the dimension tables contain
+
+A dimension table gives those numbers readable context. The actual tables also contain interim identity and audit fields, but they are left out here because these are business examples, not full schemas.
+
+| Dimension table | Sample columns | What it helps us understand |
+|---|---|---|
+| `dim_customer_poc_v2_v23` | customer | Who the result belongs to |
+| `dim_agreement_poc_v2_v23` | agreement | Which commercial agreement applies |
+| `dim_week_poc_v2_v23` | week_num | When the result applies |
+| `dim_service_poc_v2_v23` | service | Which shipping service applies |
+| `dim_tcr_poc_v2_v23` | tcr | Which trade or commercial route applies |
+| `dim_sales_rep_poc_v2_v23` | sales_rep | Who owns the allocation relationship |
+| `dim_category_poc_v2_v23` | category | Which allocation category applies |
+
+The prepared booking view brings together fields such as customer, agreement, week, service, TCR, confirmed TEU, booked TEU, cancelled TEU, total reviewed TEU, fulfillment percentage, cancellation percentage and the current stored risk flags. The agent normally reads this view instead of working through the facts and dimensions itself.
+
+> A simple way to explain it is: facts hold the numbers, dimensions explain the numbers, and the booking view gives the agent one prepared place to read both.
+
 ### Step 5: Show the before and after paths
 
 | Before | After |
@@ -66,7 +94,84 @@ I then created a 29-column booking view for the agent. It combines the booking a
 
 > The purpose was not simply to remove columns. The purpose was to give the agent a clearer data contract.
 
-### Step 6: Explain how I tested it
+### Step 6: Show how a question becomes simpler
+
+Example business question:
+
+> For week 2026WK22 and service PVCS, show the 20 booking scopes currently marked as high cancellation, starting with the highest cancellation percentage.
+
+The following SQL is an illustrative comparison based on the verified grain rules. It is not a claim that the production agent executed these exact statements, because complete executed SQL traces were not available.
+
+Before, the wide path has to remove repeated physical rows and translate the wide-table rate name into the agreed output name:
+
+```sql
+WITH booking_scope AS (
+  SELECT DISTINCT
+    customer,
+    agreement,
+    week_num,
+    service,
+    tcr,
+    booked_teu,
+    cancelled_teu,
+    cancellation_rate,
+    is_high_cancellation
+  FROM usr.jayarsr.src_sales_ai_assistant_gold_csm_csal_summary_freeze_poc_v2_v23
+  WHERE week_num = '2026WK22'
+    AND service = 'PVCS'
+),
+prepared AS (
+  SELECT
+    *,
+    cancellation_rate AS cancellation_pct
+  FROM booking_scope
+)
+SELECT
+  customer,
+  agreement,
+  tcr,
+  booked_teu,
+  cancelled_teu,
+  cancellation_pct
+FROM prepared
+WHERE is_high_cancellation = true
+ORDER BY
+  cancellation_pct DESC NULLS LAST,
+  customer,
+  agreement,
+  week_num,
+  service,
+  tcr
+LIMIT 20;
+```
+
+Now, the curated path reads the prepared booking view directly:
+
+```sql
+SELECT
+  customer,
+  agreement,
+  tcr,
+  booked_teu,
+  cancelled_teu,
+  cancellation_pct
+FROM usr.jayarsr.agent_booking_risk_current_poc_v2_v23
+WHERE week_num = '2026WK22'
+  AND service = 'PVCS'
+  AND is_high_cancellation = true
+ORDER BY
+  cancellation_pct DESC NULLS LAST,
+  customer,
+  agreement,
+  week_num,
+  service,
+  tcr
+LIMIT 20;
+```
+
+> The second query is easier because the data layer has already handled the booking grain and percentage name. The agent only applies the requested week, service and stored flag, then sorts the answer. That gives it fewer opportunities to select the wrong field or count the same booking value more than once.
+
+### Step 7: Explain how I tested it
 
 > I used seven technically cross-checked booking questions. I asked every question three times through each personal agent path.
 
@@ -76,7 +181,7 @@ The test size was:
 
 Both paths used the same question wording and result rules. The calls were recorded without silently retrying failed or uncertain answers.
 
-### Step 7: Present the result honestly
+### Step 8: Present the result honestly
 
 | Measure | Wide path | Curated path |
 |---|---:|---:|
@@ -88,7 +193,7 @@ Both paths used the same question wording and result rules. The calls were recor
 
 Both paths still had issues with one unstable ranking question and with required fields not always appearing in the expected response format.
 
-### Step 8: Explain what the test did not prove
+### Step 9: Explain what the test did not prove
 
 This proof of concept did not prove that:
 
@@ -101,7 +206,7 @@ This proof of concept did not prove that:
 
 The test covered booking-scope questions only. It did not validate the complete 41-question bank.
 
-### Step 9: Give the recommendation
+### Step 10: Give the recommendation
 
 > Keep production unchanged and continue the 29-column booking view as a controlled personal pilot. First, improve the response rules for the questions that were unstable or missing fields. Then capture the selected source and complete executed SQL for every run, repeat the same 42-response test and only then expand to more business areas.
 
@@ -143,4 +248,3 @@ The test covered booking-scope questions only. It did not validate the complete 
 ## Closing sentence
 
 > I have shown that the curated booking path is feasible and slightly more accurate in this controlled personal test. The responsible next step is to strengthen the agent contract and evidence, rerun the same test and expand only when the result is repeatable.
-
