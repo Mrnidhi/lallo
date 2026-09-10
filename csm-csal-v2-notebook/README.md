@@ -1,47 +1,40 @@
-# Sales AI V2 CSM benchmark
+# Sales AI V2 benchmark notebook
 
-This folder is the copy point for the personal Databricks notebook. It contains code only. Do not place response rows, credentials or private evidence files in this repository.
+Status: C01-C07 controlled personal POC complete on 10 September 2026.
 
-## What is being compared
+## What completed
 
-- Agent A uses the personal 78-column wide-table path.
-- Agent B uses the personal curated booking-scope view.
-- Both receive the same seven CSM questions three times.
-- The formal result contains 42 trials: 21 per agent.
-- Production is read-only and any production observations stay outside the formal A/B score.
+- 7 booking-scope questions
+- 2 personal main-agent paths
+- 3 repetitions per question
+- 42 of 42 responses stored and scored
+- No production changes
 
-The hard-coded risk flags are tested exactly as stored. This experiment does not validate or change their thresholds.
+The wide path produced 12 proven-correct answers out of 21 planned runs. The curated booking path produced 13. Across the 18 C01-C06 table-answer runs per path, accuracy was 66.7% versus 72.2%. Both paths were stable for three of four comparable question groups, and no clear latency winner was observed.
 
-## Continue in the existing personal notebook
+## Canonical cells
 
-The original preparation, reference, connection and scorer cells must already be loaded. The synthetic scorer check must say that all 40 checks passed.
+Files `26` through `53` are the local, one-file-per-cell source for the existing personal Databricks notebook. Imports stay in cell `26`.
 
-Copy and run these files in this order, one file per new Python cell:
+- `43` and `44`: create and operate the isolated CSM checkpoint
+- `47` and `48`: request cells; do not rerun after completion
+- `49`: read saved answers without contacting an agent
+- `50`: deterministic offline scorer
+- `51`: readable benchmark summary
+- `52`: failure reasons without customer-level rows
+- `53`: saved SQL-evidence audit
 
-1. [`43_start_csm_controlled_experiment.py`](43_start_csm_controlled_experiment.py) creates or resumes the separate CSM checkpoint. It sends no questions.
-2. [`44_csm_scoped_runner.py`](44_csm_scoped_runner.py) loads the safe runner. It sends no questions by itself.
-3. Run `csm_status()` in a small cell to confirm the next pair.
-4. Run `run_next_csm_pairs(2)` to ask one question through both personal agents exactly once.
-5. [`46_csm_saved_answer_review.py`](46_csm_saved_answer_review.py) provides no-send helpers for reviewing stored answers.
-6. Use `preview_csm_answer(question, arm, repetition)` before recording each saved answer.
-7. [`45_csm_results_report.py`](45_csm_results_report.py) creates the aggregate CSM report after the existing scoring/report functions are loaded.
-8. [`41_aggregate_results_chart.py`](41_aggregate_results_chart.py) renders the final aggregate chart after the report cell.
+The completed checkpoint already contains all 42 responses. For review, use cells `49` to `53` only. Do not rerun `47` or `48`, do not use Run All, and do not modify the saved checkpoint.
 
-Do not use Run all. Do not resend an uncertain request. The checkpoint records a request before it is sent and prevents automatic retries or incompatible reruns.
+## Decision
 
-## Why the experiment changed
+Keep production unchanged. Continue the curated booking view as a pilot, tighten the output contract for C01, C03 and C06, capture structured SQL traces, and rerun the same seven questions under a new experiment version.
 
-An unrelated Daily Outlook table refreshed while the older 12-question experiment was running. The CSM tables and booking-view definition did not change. To keep the architecture test controlled, the formal experiment now uses only C01 to C07. Finance, cases, Daily Outlook and cross-domain questions remain separate smoke tests.
+The wider 41-question and hard-scenario banks are coverage plans, not completed controlled benchmarks.
 
-## How to describe the result
+## Documents
 
-The primary score is correct answers out of all 21 planned runs per agent. Also report evaluated accuracy, repeat consistency, failures, source and grain evidence, client response time and any original SQL evidence that is actually available.
-
-Any improvement belongs to the complete curated access path, including its narrower view, clearer column names, fixed grain, stored metrics, instructions and routing. It does not prove that facts and dimensions alone caused the change or that production should be redesigned everywhere.
-
-## Supporting files
-
-- [`question_bank.md`](question_bank.md): full 41-question coverage bank
-- [`PROJECT_SUMMARY.md`](PROJECT_SUMMARY.md): project history and current position
-- [`OBSIDIAN_PRODUCTION_AND_V2.md`](OBSIDIAN_PRODUCTION_AND_V2.md): production and personal V2 diagrams
-- [`OFFICE_COPILOT_HANDOFF.md`](OFFICE_COPILOT_HANDOFF.md): normal Copilot Chat context
+- [Project summary](PROJECT_SUMMARY.md)
+- [Question bank](question_bank.md)
+- [Production and V2 architecture](OBSIDIAN_PRODUCTION_AND_V2.md)
+- [Full controlled result](reports/csm-csal-v2-controlled-benchmark-results-2026-09-10.md)

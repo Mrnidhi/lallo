@@ -1,0 +1,55 @@
+{
+  "benchmark": "CSM / CSAL V2 controlled personal A/B",
+  "date": "2026-09-10",
+  "production_changed": false,
+  "scope": {
+    "questions": ["C01", "C02", "C03", "C04", "C05", "C06", "C07"],
+    "agents": ["A", "B"],
+    "repetitions": 3,
+    "planned_trials": 42,
+    "completed_trials": 42,
+    "reference_status": "CALCULATIONS_CROSS_CHECKED_NOT_BUSINESS_SIGNED_OFF"
+  },
+  "wide_baseline": {
+    "proven_correct": 12,
+    "planned": 21,
+    "correct_pct_of_planned": 57.1,
+    "evaluable": 18,
+    "accuracy_pct_of_evaluable": 66.7,
+    "stable_evaluable_question_groups": 3,
+    "evaluable_question_groups": 4,
+    "median_client_latency_seconds": 40.98,
+    "clear_c07_no_match_narratives": 3,
+    "source_state_stable": 21
+  },
+  "curated_booking_view": {
+    "proven_correct": 13,
+    "planned": 21,
+    "correct_pct_of_planned": 61.9,
+    "evaluable": 18,
+    "accuracy_pct_of_evaluable": 72.2,
+    "stable_evaluable_question_groups": 3,
+    "evaluable_question_groups": 4,
+    "median_client_latency_seconds": 40.09,
+    "clear_c07_no_match_narratives": 3,
+    "source_state_stable": 21
+  },
+  "median_paired_latency_b_minus_a_seconds": 0.76,
+  "question_results": {
+    "C01": {"wide_correct": 2, "curated_correct": 2, "wide_consistency": "UNSTABLE", "curated_consistency": "UNSTABLE"},
+    "C02": {"wide_correct": 3, "curated_correct": 3, "wide_consistency": "STABLE", "curated_consistency": "STABLE"},
+    "C03": {"wide_correct": 1, "curated_correct": 2, "wide_consistency": "NOT_EVALUABLE", "curated_consistency": "NOT_EVALUABLE"},
+    "C04": {"wide_correct": 3, "curated_correct": 3, "wide_consistency": "STABLE", "curated_consistency": "STABLE"},
+    "C05": {"wide_correct": 3, "curated_correct": 3, "wide_consistency": "STABLE", "curated_consistency": "STABLE"},
+    "C06": {"wide_correct": 0, "curated_correct": 0, "wide_consistency": "NOT_EVALUABLE", "curated_consistency": "NOT_EVALUABLE"},
+    "C07": {"wide_correct": 0, "curated_correct": 0, "wide_consistency": "NOT_EVALUABLE", "curated_consistency": "NOT_EVALUABLE", "clear_no_match_narratives_each_arm": 3}
+  },
+  "sql_evidence": {
+    "wide_trials_with_sql_like_text": 11,
+    "curated_trials_with_sql_like_text": 13,
+    "wide_trials_naming_assigned_source": 0,
+    "curated_trials_naming_assigned_source": 0,
+    "verdict": "NOT_EVALUATED"
+  },
+  "decision": "Keep production unchanged. Continue the curated booking view as a controlled pilot, fix the output contract and structured SQL tracing, then rerun before considering migration."
+}

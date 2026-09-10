@@ -1,16 +1,18 @@
 # Sales AI V2 question bank
 
-## Current handoff: 9 September 2026
+For a smaller follow-on set of realistic, multi-signal sales scenarios, see [Sales AI V2 hard sales-rep question bank](question_bank_hard_sales_rep.md). It supplements this 41-question coverage bank.
 
-This is a sharing copy of the existing 41-question bank. The numbered questions and test IDs are unchanged. The detailed notes below retain the original design context; they are not current test results.
+## Current status: 10 September 2026
 
-The first 12 reference calculations were cross-checked in the earlier session. Saved main-agent instruction text and visible specialist mappings were also checked then. The simplified runner has passed local tests but has not been run in Databricks. No V2 benchmark result is verified. See [Project summary](PROJECT_SUMMARY.md) and [the manual run guide](README.md) for the current handoff.
+The numbered questions and test IDs are unchanged. C01-C07 have now completed a controlled 42-response personal A/B test. Their reference calculations were technically cross-checked for the frozen snapshot, but the current risk thresholds are not business-owner approved. See the [project summary](PROJECT_SUMMARY.md) and [full result](reports/csm-csal-v2-controlled-benchmark-results-2026-09-10.md).
+
+All questions outside C01-C07 remain coverage proposals until their fixtures, expected results and scoring contracts are independently verified. The hard-scenario bank is also unexecuted. Do not describe the complete 41-question bank as tested.
 
 **For the first benchmark, use the notebook's `PROMPTS`, not just the numbered sentences below.** Cell 6 in [the revised benchmark notebook](SALES_AI_V2_BENCHMARK.md) adds the fixed sorting, rounding and missing-value instructions. Actual customer, agreement and representative values stay in the office notebook. Do not give either tested agent the reference answers or reference SQL.
 
-The user has now requested coverage of **all 41 questions**. The current runner's first batch remains **1–7, 15, 18, 20, 23 and 27**: C01–C07, D01, D04, D06, D09 and R01. It is not questions 1–12. The other 29 require appropriate reference contracts, limitation rubrics or multi-turn handling before execution. Do not label the 72-run subset as the complete benchmark.
+The remaining questions require appropriate fixtures, reference contracts, limitation rubrics or multi-turn handling before execution. Pending and unsupported capabilities must remain visible, with guardrail outcomes separate from numerical accuracy.
 
-At three repetitions per main agent, the full target is 246 question-level evaluations. Question 30 has two message turns. Pending and unsupported capabilities must remain visible, with guardrail outcomes separate from numerical accuracy. [Office Copilot handoff](OFFICE_COPILOT_HANDOFF.md) explains how to extend the existing work.
+If all 41 questions are later approved for three repetitions per main agent, that would be 246 question-level evaluations, plus an extra message turn for question 30. That is a future phase, not the completed V2 result.
 
 The reference-document links in the supporting notes point to the source register in this copy. The underlying specifications, screenshots and business evidence are not included in this public repository.
 
@@ -159,11 +161,11 @@ Question 28 deliberately has no metric, date or threshold: it tests whether the 
 
 Prepared: **8 September 2026**. Source documents and implementation status have different dates; their limits are called out below.
 
-**Status: proposed questions, not a verified benchmark.** No questions were run while creating this file. All new expected answers and ground-truth SQL remain **DRAFT**. The two V2 CSM specialists, four shared readers and both personal supervisors are saved. All six readers' saved-configuration and instruction checks have passed. Supervisor instructions and attachments have been visually reviewed; saved contract/tool machine parity remains pending. The user approved a Databricks-managed comparison with the unknown underlying LLM documented. Tests still require the remaining configuration checks and independently verified ground truth.
+**Status:** C01-C07 completed the controlled personal benchmark. Their snapshot calculations were cross-checked, while business threshold approval remains outstanding. All other questions, expected answers and ground-truth SQL in this bank remain **DRAFT** until independently verified. The Databricks-managed underlying model remains unknown.
 
 ## Start here
 
-Start with these 12 questions after their expected answers have been independently checked:
+The table below records the earlier proposed 12-question expansion. Only C01-C07 are complete; the other five remain future work:
 
 | Order | Question | What it demonstrates |
 |---:|---|---|

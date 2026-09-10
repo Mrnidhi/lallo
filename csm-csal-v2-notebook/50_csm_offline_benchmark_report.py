@@ -1,15 +1,6 @@
 # Databricks notebook cell
 # Score the completed CSM checkpoint without asking either agent another question.
 
-from collections import Counter
-from pathlib import Path
-import hashlib
-import json
-import math
-import re
-import statistics
-
-
 CSM_REPORT_TITLE = "CSM / CSAL controlled A/B comparison"
 CSM_EXPECTED_QUESTIONS = ["C01", "C02", "C03", "C04", "C05", "C06", "C07"]
 CSM_EXPECTED_ARMS = ["A", "B"]

@@ -84,11 +84,11 @@ Personal short object names mean `usr.jayarsr.<name>_poc_v2_v23`. The complete f
 
 **Checked:** all 238,392 booking scopes match the frozen baseline for the checked TEU measures and stored flags. The three stored rates agree with the view percentages at two decimal places.
 
-**Still to prove:** the final reference-answer and current-setup checks, followed by repeated agent accuracy, consistency and latency. Later preparation checked ranking for the selected first-batch examples, not every possible question. No V2 benchmark result is verified yet. The base LLM is managed by Databricks and is not verified as identical between the two setups. Actual-event enrichment and swap scoring are not part of this build.
+**Benchmark complete:** C01 to C07 were asked three times through each personal main agent, giving 42 stored responses. The curated path produced 13 proven-correct answers out of 21 planned runs, compared with 12 for the wide path. Across the 18 C01-C06 table-answer runs per setup, accuracy was 72.2% versus 66.7%. Both paths were stable for three of four comparable question groups, and no clear latency winner was observed. The base LLM is managed by Databricks, so this compares the complete setups rather than proving that the data model alone caused the difference. Actual-event enrichment and swap scoring are not part of this build.
 
 ## How to explain this in the meeting
 
-> Production stays as it is. In my personal workspace, I separated booking figures and commitment figures so each is stored at the right level. I added shared labels and a prepared view that the CSM agent can query. We now have two main agents: one uses the wide table, the other uses the booking view. Their other four specialists are the same. The data checks pass; next we test the same questions against both to see whether the new setup answers more accurately and consistently, and what happens to response time.
+> Production stays as it is. In my personal workspace, I separated booking figures and commitment figures so each is stored at the right level, then gave the agent a smaller booking view. I tested that path against the frozen wide-table path using the same seven questions three times each. The smaller view was one answer better, while consistency and response time showed no clear winner. The right next step is to keep it as a pilot, fix the remaining response-contract issues and rerun before making any production decision.
 
 ## Exact object reference
 
@@ -134,14 +134,15 @@ No new facts, dimensions or serving views were built for these four readers. The
 
 ### Status and how to use this note
 
-The diagrams describe the saved V2 build checked on **8 September 2026**. This sharing copy adds the **9 September** handoff status; it is not a new live deployment audit. The notebook has been refined for manual execution, but the latest cell 7 setup stop still needs its exact output and no new benchmark results are verified.
+The diagrams describe the saved V2 build and the controlled result completed on **10 September 2026**. All 42 C01-C07 responses were stored and scored. This is not a fresh production deployment audit.
 
 Production is shown from saved August documentation, not freshly checked live attachments. Detailed source notebooks, internal specifications and evidence captures are not included in this public copy. No corporate system was changed to prepare this note.
 
-The full benchmark target is now all 41 questions. The current notebook supports a 12-question first batch; the remaining questions still need their execution and scoring contracts. This scope extension does not add new production capabilities or change these diagrams.
+The 41-question and hard-scenario banks remain future coverage assets. Only the agreed seven-question booking-scope POC is complete; the other questions still require verified reference contracts before they can be treated as a controlled benchmark.
 
 To use in Obsidian, create one Markdown note in your existing vault, paste this complete file and switch to Reading view. Keep the Mermaid fences intact. The two diagrams are architecture flows, not a claim of database cardinalities. The exact object reference above explains each fact's row level.
 
 - [Project summary](PROJECT_SUMMARY.md)
-- [Manual notebook guide](README.md)
+- [Notebook guide](README.md)
 - [Agent question bank](question_bank.md)
+- [Controlled benchmark result](reports/csm-csal-v2-controlled-benchmark-results-2026-09-10.md)

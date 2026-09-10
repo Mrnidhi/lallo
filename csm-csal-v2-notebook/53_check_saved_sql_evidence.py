@@ -1,13 +1,6 @@
 # Databricks notebook cell
 # Check whether the saved agent responses contain usable SQL evidence.
 
-from collections import Counter
-from html import escape
-import json
-import re
-import statistics
-
-
 if "CSM_SAVED_STATE" not in globals():
     raise RuntimeError("Run the completed CSM scoring cell first.")
 

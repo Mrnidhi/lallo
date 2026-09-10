@@ -1,10 +1,6 @@
 # Databricks notebook cell
 # Show a readable aggregate summary of the completed CSM benchmark.
 
-from html import escape
-import json
-
-
 if "CSM_FINAL_REPORT" not in globals():
     raise RuntimeError("Run the completed CSM scoring cell first.")
 

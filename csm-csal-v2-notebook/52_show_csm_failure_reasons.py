@@ -1,11 +1,6 @@
 # Databricks notebook cell
 # Explain benchmark misses without displaying customer-level result rows.
 
-from collections import Counter
-from html import escape
-import json
-
-
 if "CSM_FINAL_REPORT" not in globals():
     raise RuntimeError("Run the completed CSM scoring cell first.")
 
