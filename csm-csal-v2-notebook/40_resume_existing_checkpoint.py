@@ -1,9 +1,10 @@
 # Resume the saved routing benchmark without rebuilding the reference answers.
-# Run imports, settings, and read-only source checks before this cell.
+# Run only the imports and settings cells before this cell.
 
 V2_BENCHMARK_READY = False
 
 required_names = [
+    "spark",
     "EVIDENCE_PATH",
     "PERSONAL_OWNER",
     "BASELINE",
@@ -26,10 +27,11 @@ required_names = [
     "ENDPOINTS",
     "WAREHOUSE_ID",
     "ROUTING_CONTRACT",
-    "SESSION_TIME_ZONE",
 ]
 missing_names = [name for name in required_names if name not in globals()]
-assert not missing_names, "Run imports, settings, and source checks first: " + ", ".join(missing_names)
+assert not missing_names, "Run imports and settings first: " + ", ".join(missing_names)
+assert isinstance(EVIDENCE_PATH, Path), "EVIDENCE_PATH must be a Path."
+SESSION_TIME_ZONE = spark.conf.get("spark.sql.session.timeZone")
 
 
 def json_value(value):
@@ -89,6 +91,7 @@ assert MANIFEST["warehouse"] == WAREHOUSE_ID
 assert MANIFEST["baseline_version"] == BASELINE_VERSION
 assert MANIFEST["repetitions"] == REPETITIONS
 assert MANIFEST["routing_contract"] == ROUTING_CONTRACT
+assert MANIFEST["session_timezone"] == SESSION_TIME_ZONE
 
 SOURCE_MARKER = MANIFEST["sources"]
 PROMPTS = MANIFEST["prompts"]
@@ -195,9 +198,6 @@ for stage, payload in (
 assert fingerprint(review_payload()) == DRAFT_REVIEW_SHA256, (
     "Current settings do not reproduce the saved reference contract."
 )
-assert spark.conf.get("spark.sql.session.timeZone") == SESSION_TIME_ZONE
-
-
 def trial_id(qid, arm, repetition):
     return fingerprint([EXPERIMENT_ID, qid, arm, repetition])
 
