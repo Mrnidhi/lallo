@@ -35,17 +35,31 @@ The user reports good answers for all 41 questions in a manual UI test. In the n
 
 The original environment is restored and verified: Databricks Connect `18.0.9`, OpenAI `2.14.0`, Databricks SDK `0.67.0` and HTTPX `0.28.1`. Do not run the retired installation blocks or add packages.
 
-The updated settings and cell 7 ran successfully, creating and reading back the separate client2 evidence file. Cell 12 ran exactly once and saved both C01 repetition 1 responses. Cell 14 recorded client response times of **35.40 seconds for A** and **37.77 seconds for B**, one timed run each. **Zero answers have been evaluated**, so no accuracy result is available and the first batch is incomplete.
+The updated settings and cell 7 created and read back the separate client2 evidence file. Cell 12 ran exactly once and saved both C01 repetition 1 responses. Cell 13 then compared the original saved Markdown values and recorded only previously unreviewed answers. Cell 14 reports:
 
-All 41 local code checks passed. These first live requests succeeded, but the original API failure's cause remains unconfirmed. No request was repeated, production was unchanged, and all earlier evidence was preserved.
+| First C01 pair | Before (A) | After (B) |
+|---|---:|---:|
+| Received / evaluated / correct | 1 / 1 / 0 | 1 / 1 / 0 |
+| Returned rows | 20 | 20 |
+| Expected customer/agreement/TCR keys present | 4 of 20 | 4 of 20 |
+| Internally consistent utilization ratios | 20 of 20 | 20 of 20 |
+| Client response time | 35.40 seconds | 37.77 seconds |
+
+Both row results are `INCORRECT` against the frozen CSM reference. Display-header contract compliance is also false, but that is separate from the row mismatch. The arithmetic fits each returned row; that does not establish the correct source, commitment denominator or answer population.
+
+Both agents used the same allowed **CSAL Detail V2** reader. The original SQL, visually read in their saved Genie conversations, queries `dev.crmi_gold.csal_teu_performance` and aggregates confirmed and reviewed TEU by customer, agreement and TCR for the requested week/service. A uses no CTEs or joins; B uses one CTE and no joins. These queries did not exercise the differing frozen CSM and booking-view paths. SQL execution times are unavailable, and structured SQL, source and grain verdicts remain `NOT_EVALUABLE`.
+
+This is a metric-source/routing mismatch in our personal comparison, not proof of a production fault or an access violation. No architecture winner can be inferred from this pair.
+
+All 41 local code checks passed. The original API failure's cause remains unconfirmed. Only saved-response review and reporting were rerun, with zero new questions. No request was repeated, production was unchanged, and all earlier evidence was preserved.
 
 ## What remains
 
 All **41 questions** remain the target.
 
-1. In cell 13, inspect the saved C01 responses with `show_trial`. Do not ask either agent the same question again to obtain evidence.
-2. Record actual rows with `record_answer`, then check the claims, SQL and source/grain evidence. Never copy expected answers into the actual results.
-3. Use cell 14 to inspect the comparison before sending another pair. The prepared questions are **1–7, 15, 18, 20, 23 and 27**: 12 questions, three repetitions per agent, **72 planned trials** including the first pair.
+1. **Pause new submissions for the user's routing decision.** The smallest proposed correction is equivalent CSM-routing clarification in both personal supervisors, followed by a new instruction/experiment version. Do not rebuild tables or change production.
+2. Preserve this first pair and its reference answers. Do not redefine the expected answer to match what the agents returned. Complete any further SQL, source, grain or claim review from saved evidence only; unavailable checks remain unresolved.
+3. After that decision, continue the controlled comparison. The prepared questions are **1–7, 15, 18, 20, 23 and 27**: 12 questions, three repetitions per agent, **72 planned trials**. Only two have been submitted; **70 are unsubmitted**. A revised experiment must not silently inherit these as unchanged-configuration runs.
 4. Add execution and scoring support for the remaining 29 in the same notebook. Question 30 needs two-message handling. Keep clarification, limitation and pending outcomes separate from numerical accuracy.
 
 The complete target is **246 question-level evaluations**, plus additional message turns for question 30. It is not completed or fully supported work. Preserve first-batch evidence when extending the plan, and never silently resend uncertain requests.

@@ -22,14 +22,18 @@ The saved setup has two main agents with the same Finance, Cases, Sales Workspac
 
 I report that all 41 questions gave good answers in the manual UI test. Notebook cells 1–6 passed, cell 8 confirmed both connections are ready, cells 9–10 loaded, and all 40 synthetic checks in cell 11 passed. The 41 local code checks also passed.
 
-The updated settings and cell 7 ran successfully, creating and reading back the client2 evidence file. Cell 12 ran exactly once and saved both C01 repetition 1 responses. Cell 14 recorded **A: 35.40 seconds; B: 37.77 seconds**, one timed run each, with **zero answers evaluated**. The first batch remains incomplete. No request was repeated, no production objects changed, and prior evidence was preserved. The original failure's cause remains unconfirmed; do not infer accuracy from response success or reuse V1 results as V2 evidence.
+The client2 evidence file was created and read back. Cell 12 ran once, saving C01 repetition 1 from both agents. Cell 13 compared the original saved Markdown values and recorded only previously unreviewed answers. Cell 14 now shows **each agent: 1 received, 1 evaluated, 0 correct** against the frozen CSM reference. Both returned 20 rows, with only 4 of the 20 expected customer/agreement/TCR keys present. All 20 ratios were internally consistent for each agent. Display-header compliance was false separately from the row mismatch. Client response times were **A: 35.40 seconds; B: 37.77 seconds**.
+
+Both used the same allowed **CSAL Detail V2** reader. The original SQL was visually read in the saved Genie conversations: both query `dev.crmi_gold.csal_teu_performance` and aggregate confirmed/reviewed TEU by customer, agreement and TCR for the requested week/service. A has no CTEs or joins; B has one CTE and no joins. SQL duration is unavailable; structured SQL, source and grain verdicts remain `NOT_EVALUABLE`.
+
+This pair did not test the intended difference between the frozen CSM table and booking view. Treat it as a metric-source/routing mismatch in our personal benchmark, not a production diagnosis or security violation. Only saved-response review and reporting were rerun, with zero new questions. No request was repeated; production and earlier evidence remain unchanged. The original connection failure's cause remains unconfirmed.
 
 ## Guide one cell at a time
 
-1. Start with cell **13** and `show_trial('C01', 'A', 1)`, then the same call for B. Read the saved responses; do not send new requests to recover them.
-2. Use `record_answer` with actual returned rows, not reference rows. Check the answer claims, SQL and source/grain evidence; leave unavailable checks unresolved.
-3. Cell **14** updates the comparison from saved evidence. Review that first pair before running cell **12** again.
-4. Continue one A/B pair at a time. Recorded trials are reused; never reset an uncertain request or claim that one timed pair proves an improvement.
+1. **Do not run cell 12 again yet.** Ask whether to clarify CSM routing equally in both personal supervisors, with a new instruction/experiment version. Do not make that decision or rebuild tables automatically.
+2. Preserve the original C01 trials and expected answers. Never change the reference to match observed answers or copy expected rows into actual evidence. Further inspection should use the saved responses, not new questions.
+3. Keep SQL, source, grain and answer-claim checks unresolved until supported by evidence. Cell **14** can report saved results without sending agent requests.
+4. After the user decides, follow the matching versioned plan one pair at a time. Do not mix different instruction versions or silently reset uncertain requests.
 
 Keep imports in cell 1. Supply complete replacement code for a specific cell only when needed, explain the expected output, then wait. Do not generate several speculative fixes at once.
 
@@ -37,8 +41,8 @@ Keep imports in cell 1. Supply complete replacement code for a specific cell onl
 
 The new client checkpoint is `v2-benchmark-client2-evidence.json`. Leave `v2-benchmark-client-evidence.json`, `v2-benchmark-simple-evidence.json` and `v2-benchmark-evidence.json` untouched, including any `UNKNOWN` records. This client experiment does not resume or reconcile an old API request. Never silently retry an uncertain request or copy old trials across. If the revised code or client settings mismatch a saved checkpoint, preserve it rather than rewriting its settings.
 
-All **41 questions** remain the target. The prepared subset is **1–7, 15, 18, 20, 23 and 27**: C01–C07, D01, D04, D06, D09 and R01. Three repetitions per agent mean **72 planned trials**, including the first pair. The other 29 still need execution and scoring support; changing the question list alone is insufficient. Question 30 requires two-message handling.
+All **41 questions** remain the target. The prepared subset is **1–7, 15, 18, 20, 23 and 27**: C01–C07, D01, D04, D06, D09 and R01. Three repetitions per agent mean **72 planned trials**; two were submitted and **70 are unsubmitted**. The other 29 questions still need execution and scoring support; changing the question list alone is insufficient. Question 30 requires two-message handling.
 
 Use unchanged full prompts, including sorting and precision, and never send reference answers or scoring notes to the tested agents. Keep NULL distinct from zero, commitment at its correct level, and identities local to each source. Preserve uncertain and inconclusive evidence rather than making it look complete.
 
-Production, enrichment, threshold calibration and swap scoring stay unchanged. Keep business rows and checkpoint contents out of Git. Start by asking which cell I last completed and for its actual output.
+Production, enrichment, threshold calibration and swap scoring stay unchanged. Keep business rows and checkpoint contents out of Git. Start with the routing decision above, not another benchmark run.

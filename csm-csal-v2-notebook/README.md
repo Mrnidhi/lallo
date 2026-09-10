@@ -12,11 +12,15 @@ The original environment is restored and verified: Databricks Connect `18.0.9`, 
 
 Cells 1–6 passed, cell 8 confirmed both connections are ready, cells 9–10 loaded, and all 40 synthetic checks in cell 11 passed. The updated settings and cell 7 ran successfully; the client2 evidence file was created and read back.
 
-Cell 12 ran exactly once and saved both C01 repetition 1 responses. Cell 14 recorded **A: 35.40 seconds; B: 37.77 seconds**, one timed run each and **zero answers evaluated**. Next: inspect the saved responses and record actual rows, claims, SQL and source/grain checks before another pair. No request was repeated; prior evidence and production remain unchanged.
+The first C01 pair is saved and evaluated: **each agent has 1 received, 1 evaluated and 0 correct answers** against the frozen CSM reference. Both returned 20 rows, but only 4 of the 20 expected customer/agreement/TCR keys matched. Their arithmetic was internally consistent in all 20 rows; the problem is not simply a percentage calculation or display-header difference. Response times were **A: 35.40 seconds; B: 37.77 seconds**.
+
+Both agents used the same allowed **CSAL Detail V2** reader instead of their different CSM readers. This pair therefore does not test the intended wide-table versus booking-view difference. It is not a production diagnosis or a security violation. Original SQL was read in the saved conversations; SQL duration and structured SQL/source/grain verdicts remain unavailable or `NOT_EVALUABLE`.
+
+**Pause new submissions.** The next decision is whether to clarify CSM routing equally in both personal supervisors and start a new instruction/experiment version. Keep the original trial, evidence and expected answers unchanged; no rebuild is needed. Cell 13 reviewed the original saved answers, and cell 14 reported them without new questions. Production and prior evidence remain unchanged.
 
 The standalone notebook scripts and old troubleshooting instructions have been replaced by this single code document. Earlier Git versions remain recoverable from history. Databricks notebooks, tables, agents and saved results were not deleted.
 
-The full target remains 41 questions. This revision has 12 prepared questions and 72 planned runs; the other 29 still need scoring support. All 41 local code checks passed. The first pair was received but not evaluated, so the batch is incomplete and no accuracy claim is justified. The original API failure's cause remains unconfirmed.
+The target remains 41 questions. Of 72 planned trials for the first 12 questions, **70 are still unsubmitted**. The remaining 29 questions need test support. All 41 local code checks passed. See the project summary for the first-pair findings; these results do not establish an architecture winner. The original API failure's cause remains unconfirmed.
 
 ## Supporting documents
 

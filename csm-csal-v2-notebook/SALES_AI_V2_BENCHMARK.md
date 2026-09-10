@@ -2,7 +2,9 @@
 
 Revision: `v2_readable_client_2`
 
-**Before running:** use the original notebook environment with no added client packages. Cell 1 displays installed versions. Do not rerun the retired package installation.
+**Current pause:** do not submit another pair until the user decides how to clarify CSM routing. The first pair is saved and evaluated; see Current run below.
+
+Use the original notebook environment with no added client packages. Cell 1 displays installed versions. Do not rerun the retired package installation.
 
 We are comparing the existing personal wide-table agent with the personal booking-scope agent. The tables and agents are already built. This notebook checks their answers; it does not redesign or modify production.
 
@@ -13,7 +15,7 @@ Copy each Python block into the matching cell of your existing **09-sales-ai-v2-
 1. Run cells **1–6** in order. They load settings, check the data and calculate expected answers.
 2. Run cells **7–11**. They save the test setup, prepare the client and check the scorer.
 3. Run cell **12 once**. By default, it asks one question through A and B, not the full batch.
-4. Use cell **13** to record the actual returned rows, then run cell **14** for the comparison. Continue one pair at a time.
+4. Use cell **13** to record the actual returned rows, then run cell **14** for the comparison. These steps are complete for the first pair. Further submissions are paused for the routing decision below.
 
 Do not use **Run all**. If a cell fails, stop at that cell. Do not delete an evidence file or change a passed check just to continue.
 
@@ -31,9 +33,13 @@ The original notebook environment has been restored and verified: Databricks Con
 
 Cells 1–6 passed. Cell 8 confirmed both connections are ready, cells 9–10 loaded, and all 40 synthetic scorer checks in cell 11 passed. The updated settings and cell 7 ran successfully; the separate client2 evidence file was created and read back.
 
-Cell 12 ran exactly once. Both C01 repetition 1 responses were saved. Cell 14 recorded **35.40 seconds for A** and **37.77 seconds for B**, with one timed run each and **zero answers evaluated**. These are client response times, not SQL durations or proof of accuracy. The first 12-question batch is still incomplete.
+Cell 12 ran exactly once. Cell 13 compared the original saved C01 final Markdown values and recorded only previously unreviewed answers. Cell 14 now shows **each agent: 1 received, 1 evaluated, 0 correct**. Both returned 20 rows, but only **4 of the 20 expected customer/agreement/TCR keys** matched the frozen CSM reference. Each agent's 20 ratios were internally consistent. Display-header contract compliance was false, separately from the row mismatch.
 
-Next, inspect the saved C01 responses in cell 13 and record their actual rows and checked claims, SQL and source/grain evidence before sending another pair. Do not copy expected rows into the actual answers. No request was repeated, production was unchanged, and all previous evidence files were preserved.
+Client response times were **A: 35.40 seconds; B: 37.77 seconds**, one timed run each. Both used the same allowed **CSAL Detail V2** reader. Original SQL, visually read in the saved Genie conversations, queries `dev.crmi_gold.csal_teu_performance`: A uses no CTEs or joins; B uses one CTE and no joins. SQL durations are unavailable, and structured SQL, source and grain verdicts remain `NOT_EVALUABLE`.
+
+This pair did not exercise the intended different CSM paths. It is a metric-source/routing mismatch in our personal comparison, not a production diagnosis or security violation. **Pause new submissions** pending the user's choice on equivalent CSM-routing clarification in both personal supervisors and a new instruction/experiment version. No table rebuild is needed. Preserve this pair and its expected answers; do not redefine the reference to match the observed results.
+
+Only saved-response review and reporting were rerun, with zero new questions. Production and all earlier evidence remain unchanged. Of the first batch's 72 planned trials, **70 are unsubmitted**; the other 29 bank questions still need test support. No architecture winner is established.
 
 References: [Databricks notebook-scoped libraries](https://docs.databricks.com/aws/en/libraries/notebooks-python-libraries) and [Databricks OpenAI package](https://pypi.org/project/databricks-openai/0.17.1/).
 
