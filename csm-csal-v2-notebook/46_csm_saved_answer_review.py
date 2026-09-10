@@ -1,6 +1,7 @@
 # Cell 18 | Review saved CSM answers
 # Reads answers already stored in the checkpoint. It never asks an agent.
-# Header matching is exact and deliberately stops on unfamiliar wording.
+# Required headers use an exact allowlist. Extra display columns are retained
+# for the contract check but do not block the business-value comparison.
 
 assert callable(globals().get("csm_load_checkpoint")), "Load the CSM checkpoint first."
 assert callable(globals().get("_saved_c01_rows")), "Load the saved-answer review cell first."
@@ -25,17 +26,31 @@ CSM_HEADER_NAMES = {
     ],
     "fulfillment_pct": [
         "fulfillment_pct",
+        "fulfillment_percentage",
         "Fulfillment %",
         "Utilization %",
         "Confirmed Utilization %",
     ],
     "cancellation_pct": [
         "cancellation_pct",
+        "cancellation_rate",
         "Cancellation %",
         "Cancellation Percentage",
     ],
-    "rejection_pct": ["rejection_pct", "Rejection %", "Rejection Percentage"],
-    "booking_pct": ["booking_pct", "Booking %", "Booking Utilization", "Booking Utilization %"],
+    "rejection_pct": [
+        "rejection_pct",
+        "rejection_rate",
+        "Rejection %",
+        "Rejection Percentage",
+    ],
+    "booking_pct": [
+        "booking_pct",
+        "booking_rate",
+        "booking_percentage",
+        "Booking %",
+        "Booking Utilization",
+        "Booking Utilization %",
+    ],
 }
 
 
@@ -68,10 +83,6 @@ def exact_header_map(question, rows):
         )
         if matches[0] != canonical:
             mapping[canonical] = matches[0]
-    used_headers = {mapping.get(name, name) for name in required}
-    assert used_headers == set(headers), (
-        "The answer contains extra or missing columns. Inspect it before recording."
-    )
     return mapping
 
 

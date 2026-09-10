@@ -17,6 +17,15 @@ assert fingerprint(base_manifest) == base_state["experiment_id"], (
 )
 assert set(CSM_QUESTION_IDS) <= set(base_manifest["prompts"])
 
+CSM_SCOPE_LIMITATION = "This controlled experiment covers seven CSM questions."
+csm_limitations = [
+    limitation
+    for limitation in base_manifest["limitations"]
+    if "12 of the 41 proposed questions" not in limitation
+    and limitation != CSM_SCOPE_LIMITATION
+]
+csm_limitations.append(CSM_SCOPE_LIMITATION)
+
 csm_names = set(CSM_DEPENDENCIES)
 csm_sources = {
     name: dict(value, format="delta")
@@ -55,7 +64,7 @@ MANIFEST = {
     "fixtures": {"lookup": base_manifest["fixtures"]["lookup"]}, "reference_sha256": None,
     "repetitions": 3, "reference_status": "CALCULATIONS_CROSS_CHECKED_NOT_BUSINESS_SIGNED_OFF",
     "session_timezone": base_manifest["session_timezone"],
-    "limitations": base_manifest["limitations"],
+    "limitations": csm_limitations,
     "experiment_note": "Separate CSM-only controlled experiment derived from routing1; prior evidence is unchanged.",
 }
 QUESTION_IDS = CSM_QUESTION_IDS
