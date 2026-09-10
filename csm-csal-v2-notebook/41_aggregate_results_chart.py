@@ -30,13 +30,14 @@ else:
             result = arms.get(arm, {})
             return result.get(key)
 
-        def status_count(arm, status):
-            return arms.get(arm, {}).get("status_counts", {}).get(status, 0)
+        def status_count(arm, statuses):
+            counts = arms.get(arm, {}).get("status_counts", {})
+            return sum(counts.get(status, 0) for status in statuses)
 
         def source_count(arm, verdict):
             return arms.get(arm, {}).get("source_isolation_verdicts", {}).get(verdict, 0)
 
-        correctness = [value(arm, "correctness_pct_of_evaluated") or 0 for arm in keys]
+        task_success = [value(arm, "task_success_pct_of_planned") or 0 for arm in keys]
         client_latency = [value(arm, "median_client_end_to_end_seconds") for arm in keys]
         sql_latency = [value(arm, "median_sql_execution_seconds") for arm in keys]
         sql_latency_plot = [x if x is not None else 0 for x in sql_latency]
@@ -44,17 +45,23 @@ else:
         fig, axes = plt.subplots(2, 3, figsize=(15, 8), constrained_layout=True)
         fig.suptitle("Sales AI V2 | CSM architecture benchmark", fontsize=15)
 
-        axes[0, 0].bar(labels, correctness, color=["#3568a8", "#e07a35"])
-        axes[0, 0].set_title("Correctness among evaluated trials")
+        axes[0, 0].bar(labels, task_success, color=["#3568a8", "#e07a35"])
+        axes[0, 0].set_title("Correct answers out of all planned runs")
         axes[0, 0].set_ylabel("Percent")
         axes[0, 0].set_ylim(0, 100)
 
-        statuses = ["CORRECT", "INCORRECT", "NOT_EVALUABLE", "INCONCLUSIVE"]
+        status_groups = [
+            ("CORRECT", ["CORRECT"]),
+            ("INCORRECT", ["INCORRECT"]),
+            ("PARTIAL / UNSUPPORTED", ["PARTIALLY_SUPPORTED", "UNSUPPORTED"]),
+            ("NOT EVALUATED", ["NOT_EVALUABLE", "INCONCLUSIVE"]),
+            ("PENDING", ["PENDING"]),
+        ]
         bottom = [0, 0]
-        colors = ["#4c9f70", "#c94c4c", "#9aa0a6", "#8064a2"]
-        for status, color in zip(statuses, colors):
-            counts = [status_count(arm, status) for arm in keys]
-            axes[0, 1].bar(labels, counts, bottom=bottom, label=status, color=color)
+        colors = ["#4c9f70", "#c94c4c", "#d79d31", "#8064a2", "#9aa0a6"]
+        for (label, statuses), color in zip(status_groups, colors):
+            counts = [status_count(arm, statuses) for arm in keys]
+            axes[0, 1].bar(labels, counts, bottom=bottom, label=label, color=color)
             bottom = [left + right for left, right in zip(bottom, counts)]
         axes[0, 1].set_title("Trial status counts")
         axes[0, 1].set_ylabel("Trials")
@@ -84,11 +91,12 @@ else:
             1,
             "Scope\n"
             f"Experiment: {report.get('experiment_id', 'unavailable')}\n"
-            f"Prepared questions: {report.get('question_scope', {}).get('prepared_in_this_batch', 'unavailable')}\n"
+            f"Formal questions: {report.get('question_scope', {}).get('formal_questions', 'unavailable')}\n"
+            f"Planned trials: {report.get('question_scope', {}).get('planned_trials', 'unavailable')}\n"
             f"Complete timed pairs: {report.get('complete_timed_pairs', 'unavailable')}\n"
             f"Paired B minus A latency: {report.get('median_paired_B_minus_A_seconds', 'unavailable')}\n\n"
             "Notes\n"
-            "Missing SQL telemetry remains unavailable.\n"
+            "Missing SQL evidence remains unavailable.\n"
             "This view contains aggregate checkpoint metrics only.",
             va="top",
             fontsize=10,
