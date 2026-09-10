@@ -1505,11 +1505,12 @@ print("Next: use cell 13 to compare the actual answers, then cell 14 for the rep
 
 ## Cell 13 | Record the actual answers
 
-Run this block to load the answer-recording helpers. Then use `show_trial('C01', 'A', 1)` to read the saved answer. Put its real row values in `actual_rows` and call `record_answer('C01', 'A', 1, actual_rows, note='Copied from the saved C01 A response')`. Repeat for B. This cell does not invent or automatically extract rows from prose. Optional SQL/source/grain checks stay unknown until supported by the original query or trace.
+Run this block to inspect the saved C01 pair. Its strict parser reads the original final Markdown tables, previews the row comparison and records initial evidence only for answers with no existing review. It preserves headers, string values, rows and order; malformed tables stop instead of being guessed. Existing reviews are not replaced. Expected answers are never copied into actual rows. Claim, SQL, source and grain checks stay unknown until independently supported. For later questions, use `show_trial` and `record_answer` with their original returned rows.
 
 ```python
 # Cell 13 | Record the actual answers
-# Copy rows from the saved agent response. Never copy the expected answers here.
+# The first saved C01 pair is parsed and recorded only when it has no review yet.
+# Existing reviews are retained. Expected answers are never used as actual rows.
 
 
 def inspect_saved_answers(question="C01", repetition=1):
@@ -1557,6 +1558,65 @@ def inspect_saved_answers(question="C01", repetition=1):
                 show_value(item)
 
 
+def _saved_c01_rows(trial, required_headers):
+    """Read the one final-answer table, without consulting reference answers."""
+    assert trial["state"] == "RECEIVED" and not trial.get("response_problem"), "A complete saved response is required."
+    response = trial["response"]
+    assert trial["response_fingerprint"] == fingerprint(response), "Saved response changed."
+    outputs = response.get("output")
+    assert isinstance(outputs, list) and outputs, "No saved output items."
+    final = outputs[-1]
+    assert isinstance(final, dict) and final.get("type") == "message" and final.get("role") == "assistant" and not final.get("call_id"), "The last item is not the final assistant message."
+    content = final.get("content")
+    assert isinstance(content, list) and len(content) == 1 and isinstance(content[0], dict), "Expected one final text block."
+    text = content[0].get("text")
+    assert content[0].get("type") == "output_text" and isinstance(text, str), "Final answer is not plain text."
+    lines = text.splitlines()
+    positions = [index for index, line in enumerate(lines) if line.strip().startswith("|") or line.strip().endswith("|")]
+    assert len(positions) >= 3 and positions == list(range(positions[0], positions[-1] + 1)), "Expected one contiguous answer table."
+    table = [lines[index].strip() for index in positions]
+    assert all(line.startswith("|") and line.endswith("|") and "\\|" not in line for line in table), "Malformed or escaped table delimiter."
+    cells = [[value.strip() for value in line[1:-1].split("|")] for line in table]
+    headers = cells[0]
+    assert all(headers) and len(set(headers)) == len(headers) and set(required_headers).issubset(headers), "Required headers are missing or duplicated."
+    assert all(len(row) == len(headers) for row in cells), "Table widths differ."
+    assert all(re.fullmatch(r":?-{3,}:?", value) for value in cells[1]), "Invalid Markdown separator."
+    assert all(value for row in cells[2:] for value in row), "Empty cells are ambiguous; inspect the original."
+    return [dict(zip(headers, row)) for row in cells[2:]]
+
+
+def compare_saved_c01():
+    """Preview saved C01 row comparisons only; no evidence or verdict is written."""
+    aliases = dict(zip(["customer", "agreement", "tcr", "confirmed_teu", "total_reviewed_teu", "fulfillment_pct"],
+                       ["Customer", "Agreement", "TCR", "Confirmed TEU", "Total Reviewed Commitment", "Utilization %"]))
+    saved = load_checkpoint()
+    actual = {arm: _saved_c01_rows(saved["trials"][trial_id("C01", arm, 1)], aliases.values()) for arm in ("A", "B")}
+    # Extraction above never reads the reference. Use it only for this comparison.
+    reference = MANIFEST["expected"]["C01"]["answer"]
+    contract = MANIFEST["contracts"]["C01"]["answer"]
+    reference_keys = Counter(tuple(row[key] for key in ("customer", "agreement", "tcr")) for row in reference)
+    scores = {}
+    for arm, rows in actual.items():
+        scores[arm] = score_section(reference, rows, contract["columns"], contract["precision"], aliases, ordered=True)
+        actual_keys = Counter(tuple(row[aliases[key]] for key in ("customer", "agreement", "tcr")) for row in rows)
+        matching_keys = sum((reference_keys & actual_keys).values())
+        consistent, checked = 0, 0
+        for row in rows:
+            try:
+                confirmed, reviewed, percentage = [_v2_decimal(row[aliases[key]]) for key in ("confirmed_teu", "total_reviewed_teu", "fulfillment_pct")]
+                if reviewed <= 0:
+                    continue
+                calculated = confirmed / reviewed * Decimal(100)
+                consistent += _v2_decimal_token(calculated, 6) == _v2_decimal_token(percentage, 6)
+                checked += 1
+            except (ValueError, InvalidOperation, OverflowError):
+                continue
+        print(arm, {"rows": len(rows), "row_status": scores[arm]["status"], "display_header_contract": scores[arm]["contract_compliant"],
+                    "matching_keys": matching_keys, "ratio_consistent": consistent, "ratio_checked": checked, "ratio_unchecked": len(rows) - checked})
+    return {"rows": actual, "scores": scores, "aliases": aliases,
+            "alias_note": "Display labels mapped to the C01 question's defined fields; SQL and source usage remain unverified."}
+
+
 def show_trial(question, arm, repetition=1):
     """Read one saved response without asking the agent again."""
     state = load_checkpoint()
@@ -1575,7 +1635,7 @@ def record_answer(question, arm, repetition, rows, *, note,
                   sources_and_dates_correct=None, sql=None,
                   source_isolation="NOT_EVALUABLE", grain_correctness="NOT_EVALUABLE",
                   answer_support="SUPPORTED", aliases=None, alias_note="",
-                  sql_capture_complete=None, sql_capture_note=""):
+                  sql_capture_complete=None, sql_capture_note="", only_if_unreviewed=False):
     """Save copied rows and optional evidence. Unknown checks stay unknown.
 
     For most questions rows is a list of dictionaries. R01 has two lists:
@@ -1586,6 +1646,7 @@ def record_answer(question, arm, repetition, rows, *, note,
     assert question in QUESTION_IDS and arm in ENDPOINTS
     assert type(repetition) is int and 1 <= repetition <= REPETITIONS
     assert isinstance(note, str) and note.strip(), "Identify the original response used."
+    assert type(only_if_unreviewed) is bool
     assert answer_support in {"SUPPORTED", "PARTIALLY_SUPPORTED", "UNSUPPORTED"}
     for value in (narrative_correct, honest_no_match, sources_and_dates_correct, sql_capture_complete):
         assert value is None or type(value) is bool, "Use True, False or None for an unchecked claim."
@@ -1625,6 +1686,9 @@ def record_answer(question, arm, repetition, rows, *, note,
         assert trial and trial["state"] == "RECEIVED", "No complete response was saved."
         assert trial["response_fingerprint"] == fingerprint(trial["response"]), "Saved response changed."
         assert not trial.get("response_problem"), "This reply is unfinished or contains an error."
+        if only_if_unreviewed and trial.get("reviews"):
+            print(f"Existing answer evidence retained: {question} | Agent {arm} | Repetition {repetition}.")
+            return key
         review = {
             "trial_key": key, "response_fingerprint": trial["response_fingerprint"],
             "reviewer": PERSONAL_OWNER, "evidence_note": note, "sections": sections,
@@ -1644,9 +1708,9 @@ def record_answer(question, arm, repetition, rows, *, note,
     return key
 
 
-print("Read show_trial('C01', 'A', 1), then place its actual row values in actual_rows.")
-print("record_answer('C01', 'A', 1, actual_rows, note='Copied from the saved C01 A response')")
-print("Repeat for Agent B. Set narrative_correct=True only after checking the answer's claims.")
+print("The first saved C01 pair is inspected below; only previously unreviewed answers are recorded.")
+print("For later questions, use show_trial and record_answer with their original returned rows.")
+print("Set narrative_correct=True only after checking the answer's claims.")
 print("Missing SQL, source and grain checks remain unavailable. Cell 14 shows the comparison.")
 
 
@@ -1654,6 +1718,14 @@ if globals().get("V2_BENCHMARK_READY") is True and callable(globals().get("load_
     inspection_trials = load_checkpoint()["trials"]
     if all(trial_id("C01", arm, 1) in inspection_trials for arm in ("A", "B")):
         inspect_saved_answers()
+        C01_COMPARISON = compare_saved_c01()
+        initial_note = ("Parsed the original saved C01 final Markdown table. Only outer cell padding was trimmed; "
+                        "values, rows, order and headers were preserved. Reader routing and SQL checks are recorded separately.")
+        for arm in ("A", "B"):
+            record_answer("C01", arm, 1, C01_COMPARISON["rows"][arm], note=initial_note,
+                          aliases={"answer": C01_COMPARISON["aliases"]}, alias_note=C01_COMPARISON["alias_note"],
+                          narrative_correct=None, source_isolation="NOT_EVALUABLE",
+                          grain_correctness="NOT_EVALUABLE", sql=None, only_if_unreviewed=True)
     else:
         print("No saved C01 A/B pair is available for inspection.")
 ```
