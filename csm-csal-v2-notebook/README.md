@@ -1,28 +1,47 @@
-Zx # Sales AI V2 benchmark
+# Sales AI V2 CSM benchmark
 
-Start with [SALES_AI_V2_BENCHMARK.md](SALES_AI_V2_BENCHMARK.md). It contains the complete revised notebook, one Python block per cell.
+This folder is the copy point for the personal Databricks notebook. It contains code only. Do not place response rows, credentials or private evidence files in this repository.
 
-Use the existing personal **09-sales-ai-v2-benchmark** notebook. Run cells individually. Cell 12 sends one A/B pair by default; cell 13 records the actual answers and cell 14 shows the comparison.
+## What is being compared
 
-Revision: `v2_routing_contract_1`. Experiment label: `sales_ai_v2_first12_routing_01`. This uses a separate `v2-benchmark-routing1-evidence.json` file. Preserve all earlier evidence files, including `v2-benchmark-client2-evidence.json`; do not treat the new run as recovery of an old request.
+- Agent A uses the personal 78-column wide-table path.
+- Agent B uses the personal curated booking-scope view.
+- Both receive the same seven CSM questions three times.
+- The formal result contains 42 trials: 21 per agent.
+- Production is read-only and any production observations stay outside the formal A/B score.
 
-For this revision, both personal supervisors have the same saved routing instructions. They were manually read back after refresh and matched fingerprint `34e216...a7398`. Agent A uses **CSM Wide Baseline V2** for CSM summaries; agent B uses **CSM Booking Scope V2**. The shared readers remain the same.
+The hard-coded risk flags are tested exactly as stored. This experiment does not validate or change their thresholds.
 
-The standalone notebook scripts and old troubleshooting instructions have been replaced by this single code document. Earlier Git versions remain recoverable from history. Databricks notebooks, tables, agents and saved results were not deleted.
+## Continue in the existing personal notebook
 
-The original environment is restored and verified: Databricks Connect `18.0.9`, OpenAI `2.14.0`, Databricks SDK `0.67.0` and HTTPX `0.28.1`. Cells 1–6 passed, cell 8 confirmed both connections are ready, cells 9–10 loaded, and all 40 synthetic checks in cell 11 passed.
+The original preparation, reference, connection and scorer cells must already be loaded. The synthetic scorer check must say that all 40 checks passed.
 
-The first C01 pair is saved and evaluated: **each agent has 1 received, 1 evaluated and 0 correct answers** against the frozen CSM reference. Both returned 20 rows, but only 4 of the 20 expected customer/agreement/TCR keys matched. Their arithmetic was internally consistent in all 20 rows; the problem is not simply a percentage calculation or display-header difference. Response times were **A: 35.40 seconds; B: 37.77 seconds**.
+Copy and run these files in this order, one file per new Python cell:
 
-Both agents used the same allowed **CSAL Detail V2** reader instead of their different CSM readers. This pair therefore does not test the intended wide-table versus booking-view difference. It is not a production diagnosis or a security violation. Original SQL was read in the saved conversations; SQL duration and structured SQL/source/grain verdicts remain unavailable or `NOT_EVALUABLE`.
+1. [`43_start_csm_controlled_experiment.py`](43_start_csm_controlled_experiment.py) creates or resumes the separate CSM checkpoint. It sends no questions.
+2. [`44_csm_scoped_runner.py`](44_csm_scoped_runner.py) loads the safe runner. It sends no questions by itself.
+3. Run `csm_status()` in a small cell to confirm the next pair.
+4. Run `run_next_csm_pairs(2)` to ask one question through both personal agents exactly once.
+5. [`46_csm_saved_answer_review.py`](46_csm_saved_answer_review.py) provides no-send helpers for reviewing stored answers.
+6. Use `preview_csm_answer(question, arm, repetition)` before recording each saved answer.
+7. [`45_csm_results_report.py`](45_csm_results_report.py) creates the aggregate CSM report after the existing scoring/report functions are loaded.
+8. [`41_aggregate_results_chart.py`](41_aggregate_results_chart.py) renders the final aggregate chart after the report cell.
 
-The first C01 pair remains historical evidence. Do not rerun or overwrite it. The new routing-contract experiment is ready to prepare: replace cells 2 and 7 with the matching blocks, run cells 1–11 individually, then send only one new A/B pair. No rebuild is needed. Production and prior evidence remain unchanged.
+Do not use Run all. Do not resend an uncertain request. The checkpoint records a request before it is sent and prevents automatic retries or incompatible reruns.
 
-The target remains 41 questions. The earlier client2 batch has 70 unsubmitted trials; the new routing_01 batch begins with all 72 trials unsubmitted. The remaining 29 questions need test support. All 41 local code checks passed. See the project summary for the first-pair findings; these results do not establish an architecture winner.
+## Why the experiment changed
 
-## Supporting documents
+An unrelated Daily Outlook table refreshed while the older 12-question experiment was running. The CSM tables and booking-view definition did not change. To keep the architecture test controlled, the formal experiment now uses only C01 to C07. Finance, cases, Daily Outlook and cross-domain questions remain separate smoke tests.
 
-- [Project goal and current position](PROJECT_SUMMARY.md)
-- [All 41 business questions](question_bank.md)
-- [Production and V2 diagrams](OBSIDIAN_PRODUCTION_AND_V2.md)
-- [Copilot Chat handoff](OFFICE_COPILOT_HANDOFF.md)
+## How to describe the result
+
+The primary score is correct answers out of all 21 planned runs per agent. Also report evaluated accuracy, repeat consistency, failures, source and grain evidence, client response time and any original SQL evidence that is actually available.
+
+Any improvement belongs to the complete curated access path, including its narrower view, clearer column names, fixed grain, stored metrics, instructions and routing. It does not prove that facts and dimensions alone caused the change or that production should be redesigned everywhere.
+
+## Supporting files
+
+- [`question_bank.md`](question_bank.md): full 41-question coverage bank
+- [`PROJECT_SUMMARY.md`](PROJECT_SUMMARY.md): project history and current position
+- [`OBSIDIAN_PRODUCTION_AND_V2.md`](OBSIDIAN_PRODUCTION_AND_V2.md): production and personal V2 diagrams
+- [`OFFICE_COPILOT_HANDOFF.md`](OFFICE_COPILOT_HANDOFF.md): normal Copilot Chat context
