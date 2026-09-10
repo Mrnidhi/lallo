@@ -25,7 +25,7 @@ figure, axes = plt.subplots(1, 2, figsize=(16, 6))
 
 row_bars = axes[0].barh(labels, row_counts, color=colors, height=0.62)
 axes[0].invert_yaxis()
-axes[0].set_title("Rows retained at each business grain", loc="left")
+axes[0].set_title("Row count at each declared business grain", loc="left")
 axes[0].set_xlabel("Rows")
 axes[0].xaxis.set_major_formatter(number_format)
 axes[0].grid(axis="x", alpha=0.18)
@@ -65,7 +65,14 @@ for bar, value in zip(repeat_bars, repeated_rows):
 axes[1].set_xlim(0, max(max(repeated_rows), 1) * 1.25)
 
 figure.suptitle("CSM / CSAL grain comparison", fontsize=16, fontweight="bold")
-figure.tight_layout()
+figure.text(
+    0.5,
+    0.01,
+    "Each bar has a different row meaning. Only the repeated-row check is a duplication test.",
+    ha="center",
+    color="#475569",
+)
+figure.tight_layout(rect=[0, 0.04, 1, 0.96])
 plt.show()
 plt.close(figure)
 

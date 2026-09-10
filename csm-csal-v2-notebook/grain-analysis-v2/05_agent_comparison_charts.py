@@ -48,7 +48,14 @@ for axis in axes:
     axis.tick_params(axis="x", labelrotation=8)
 
 figure.suptitle("Agent-facing before and after result", fontsize=16, fontweight="bold")
-figure.tight_layout()
+figure.text(
+    0.5,
+    0.01,
+    "Latency is client end-to-end time. The small difference does not establish a speed winner.",
+    ha="center",
+    color="#475569",
+)
+figure.tight_layout(rect=[0, 0.05, 1, 0.96])
 plt.show()
 plt.close(figure)
 
