@@ -1,8 +1,8 @@
 # Sales AI V2 benchmark
 
-Revision: `v2_readable_client_2`
+Revision: `v2_routing_contract_1`
 
-**Current pause:** do not submit another pair until the user decides how to clarify CSM routing. The first pair is saved and evaluated; see Current run below.
+**Current status:** the first pair is saved historical evidence. The routing contract is now defined for a new, separate experiment; do not overwrite the earlier pair.
 
 Use the original notebook environment with no added client packages. Cell 1 displays installed versions. Do not rerun the retired package installation.
 
@@ -15,7 +15,7 @@ Copy each Python block into the matching cell of your existing **09-sales-ai-v2-
 1. Run cells **1–6** in order. They load settings, check the data and calculate expected answers.
 2. Run cells **7–11**. They save the test setup, prepare the client and check the scorer.
 3. Run cell **12 once**. By default, it asks one question through A and B, not the full batch.
-4. Use cell **13** to record the actual returned rows, then run cell **14** for the comparison. These steps are complete for the first pair. Further submissions are paused for the routing decision below.
+4. Use cell **13** to record the actual returned rows, then run cell **14** for the comparison. Those steps are complete only for the earlier pair. In the new experiment, review one new pair before continuing.
 
 Do not use **Run all**. If a cell fails, stop at that cell. Do not delete an evidence file or change a passed check just to continue.
 
@@ -23,7 +23,9 @@ Do not use **Run all**. If a cell fails, stop at that cell. Do not delete an evi
 
 The client now comes from the Databricks SDK already installed in the notebook. No additional package is needed. Retries are disabled, each question starts fresh, and failed requests retain their error type, failing step and elapsed time. One function records actual answers. The existing data checks, reference calculations and numeric scoring rules remain in place.
 
-This is a **new client experiment**, not a recovery of the earlier uncertain request. It uses label `sales_ai_v2_first12_client_02` and saves to `v2-benchmark-client2-evidence.json` in your personal workspace. Leave `v2-benchmark-client-evidence.json`, `v2-benchmark-simple-evidence.json` and `v2-benchmark-evidence.json` unchanged. Earlier failures remain part of the project history, not evidence of successful runs.
+This is a **new routing-contract experiment**, not a recovery of an earlier request. It uses label `sales_ai_v2_first12_routing_01` and saves to `v2-benchmark-routing1-evidence.json` in your personal workspace. Leave `v2-benchmark-client2-evidence.json`, `v2-benchmark-client-evidence.json`, `v2-benchmark-simple-evidence.json` and `v2-benchmark-evidence.json` unchanged. Earlier failures remain part of the project history, not evidence of successful runs.
+
+Both personal supervisors now have the same saved routing text. It was manually read back after refresh and matched fingerprint `34e216...a7398`. Agent A routes weekly customer, agreement and TCR CSM summaries to **CSM Wide Baseline V2**. Agent B routes the same scope to **CSM Booking Scope V2**. CSAL Detail V2 remains for individual booking drill-down. This notebook records the contract in its manifest; it does not fetch the saved UI configuration itself.
 
 Use the existing Databricks SDK, OpenAI and HTTPX libraries. Cell 8 checks that the installed SDK helper, Responses support and no-redirect behavior are available. This helper is deprecated in newer SDK documentation; we are using it as a contained compatibility option for this POC, not a recommendation for a new production integration. No separate API key is needed.
 
@@ -37,9 +39,9 @@ Cell 12 ran exactly once. Cell 13 compared the original saved C01 final Markdown
 
 Client response times were **A: 35.40 seconds; B: 37.77 seconds**, one timed run each. Both used the same allowed **CSAL Detail V2** reader. Original SQL, visually read in the saved Genie conversations, queries `dev.crmi_gold.csal_teu_performance`: A uses no CTEs or joins; B uses one CTE and no joins. SQL durations are unavailable, and structured SQL, source and grain verdicts remain `NOT_EVALUABLE`.
 
-This pair did not exercise the intended different CSM paths. It is a metric-source/routing mismatch in our personal comparison, not a production diagnosis or security violation. **Pause new submissions** pending the user's choice on equivalent CSM-routing clarification in both personal supervisors and a new instruction/experiment version. No table rebuild is needed. Preserve this pair and its expected answers; do not redefine the reference to match the observed results.
+This pair did not exercise the intended different CSM paths. It is a metric-source/routing mismatch in our personal comparison, not a production diagnosis or security violation. The routing contract is now clarified in both personal supervisors for a new experiment. No table rebuild is needed. Preserve this pair and its expected answers; do not redefine the reference to match the observed results.
 
-Only saved-response review and reporting were rerun, with zero new questions. Production and all earlier evidence remain unchanged. Of the first batch's 72 planned trials, **70 are unsubmitted**; the other 29 bank questions still need test support. No architecture winner is established.
+Only saved-response review and reporting were rerun, with zero new questions. Production and all earlier evidence remain unchanged. The earlier client2 batch has 70 unsubmitted trials; the new routing_01 batch begins with all 72 trials unsubmitted. The other 29 bank questions still need test support. No architecture winner is established.
 
 References: [Databricks notebook-scoped libraries](https://docs.databricks.com/aws/en/libraries/notebooks-python-libraries) and [Databricks OpenAI package](https://pypi.org/project/databricks-openai/0.17.1/).
 
@@ -126,8 +128,14 @@ DAILY_OUTLOOK_TASK = "DAILY_OUTLOOK"  # Verify the task_name value, not delivera
 QUESTION_IDS = ["C01", "C02", "C03", "C04", "C05", "C06", "C07", "D01", "D04", "D06", "D09", "R01"]
 REPETITIONS = 3
 WORDING_VERSION = "v2_question_wording_2"
-CODE_VERSION = "v2_readable_client_2"
-EXPERIMENT_LABEL = "sales_ai_v2_first12_client_02"
+CODE_VERSION = "v2_routing_contract_1"
+EXPERIMENT_LABEL = "sales_ai_v2_first12_routing_01"
+ROUTING_CONTRACT = {
+    "version": "csm_summary_routing_1",
+    "instruction_sha256": "34e216536917b68ec6fa530630e375e909d51ce53ad066529815a9b5ef1a7398",
+    "csm_readers": {"A": "CSM Wide Baseline V2", "B": "CSM Booking Scope V2"},
+    "verification": "Saved supervisor text was manually read back after refresh before this experiment. The notebook does not fetch supervisor settings.",
+}
 
 # Leave these empty to select usable examples within each source.
 # A matching name in two domains is not proof of a shared identity.
@@ -137,11 +145,12 @@ SALES_OVERRIDES = {"finance": None, "cases": None, "no_issues": None, "outlook":
 REQUEST_CONTRACT = {"A": "input", "B": "input"}
 MAX_TRIALS_THIS_RUN = 2  # One question through A and B per run of cell 12.
 HTTP_TIMEOUT_SECONDS = 180
-# This is a separate client comparison, not a retry of the old uncertain request.
+# This is a separate routing-contract comparison, not a retry of an earlier request.
 # Keep all previous evidence files unchanged; do not copy their trials here.
-EVIDENCE_PATH = Path("/Workspace/Users/jayarsr@oocl.com/Sales AI EDA/v2-benchmark-client2-evidence.json")
+EVIDENCE_PATH = Path("/Workspace/Users/jayarsr@oocl.com/Sales AI EDA/v2-benchmark-routing1-evidence.json")
 
 print("Plan: 12 questions × 2 supervisors × 3 repetitions = 72 trials.")
+print("Routing contract:", ROUTING_CONTRACT["version"])
 print("No enrichment, table rebuilds, new agents or production writes are included.")
 print("Next: run cells 3-6 individually to prepare the reference answers.")
 print("All 41 questions remain the full target; these 12 are the ready-to-test subset.")
@@ -838,15 +847,16 @@ MANIFEST = {
     "method_version": METHOD_VERSION, "sources": SOURCE_MARKER, "baseline_version": BASELINE_VERSION,
     "original_gold_version": 32, "endpoints": ENDPOINTS, "warehouse": WAREHOUSE_ID,
     "prompts": PROMPTS, "expected": GT, "ground_truth_sql": GT_SQL, "ground_truth_parameters": GT_PARAMETERS,
+    "routing_contract": ROUTING_CONTRACT,
     "contracts": CONTRACTS, "traceability": TRACEABILITY, "fixtures": {"lookup": LOOKUP_FIXTURE, "sales": SALES_FIXTURES},
     "reference_sha256": DRAFT_REVIEW_SHA256, "repetitions": REPETITIONS,
     "reference_status": "CALCULATIONS_CROSS_CHECKED_NOT_BUSINESS_SIGNED_OFF",
     "session_timezone": SESSION_TIME_ZONE,
-    "experiment_note": "New client revision. Earlier uncertain attempts remain in their original evidence files; they are not reconciled or erased by this run.",
+    "experiment_note": "New routing-contract experiment. Earlier C01 client2 attempts remain in their original evidence file; they are not reconciled, copied or erased by this run.",
     "limitations": ["Underlying managed models and equality are unverified.", "This is not a replica of the custom production supervisor.",
                     "Shared sources are live; version markers detect drift but do not lock the data.",
                     "The warehouse ID is the intended setting, not proof of actual per-request warehouse use.",
-                    "Agent instructions and reader equality were inspected previously, not freshly verified by this notebook.",
+                    "The supervisor routing contract was manually read back before this experiment; this notebook does not independently fetch the saved UI configuration.",
                     "Agreement with reference SQL does not independently certify business policy.",
                     "Only 12 of the 41 proposed questions are in this batch.", "Enrichment, threshold calibration and swap scoring remain deferred."],
 }
@@ -871,7 +881,7 @@ assert len(PLAN) == len({item["trial_id"] for item in PLAN}) == len(QUESTION_IDS
 
 def validate_evidence_path():
     expected_parent = Path("/Workspace/Users/" + PERSONAL_OWNER + "/Sales AI EDA")
-    assert EVIDENCE_PATH.parent == expected_parent and EVIDENCE_PATH.name == "v2-benchmark-client2-evidence.json"
+    assert EVIDENCE_PATH.parent == expected_parent and EVIDENCE_PATH.name == "v2-benchmark-routing1-evidence.json"
     assert expected_parent.is_dir(), "Personal workspace files are unavailable. Stop; do not use another destination."
     assert not EVIDENCE_PATH.is_symlink(), "Unexpected evidence-file symlink."
 

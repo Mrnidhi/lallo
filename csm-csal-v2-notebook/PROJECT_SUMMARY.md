@@ -25,13 +25,15 @@ The source data is not one common historical snapshot: CSM is frozen, while shar
 
 [SALES_AI_V2_BENCHMARK.md](SALES_AI_V2_BENCHMARK.md) is the code source: one Markdown file containing all 14 numbered cells. Paste each block into its matching cell in the existing **09-sales-ai-v2-benchmark** notebook. No notebook needs to be created or deleted.
 
-Revision `v2_readable_client_2` uses the installed SDK's `WorkspaceClient.serving_endpoints.get_open_ai_client` helper: a 180-second timeout, zero automatic retries and a check that redirects remain disabled. It needs no additional `DatabricksOpenAI` package or installation. The helper is deprecated; this is a contained proof of concept using the existing runtime, not a long-term production recommendation.
+Revision `v2_routing_contract_1` uses the installed SDK's `WorkspaceClient.serving_endpoints.get_open_ai_client` helper: a 180-second timeout, zero automatic retries and a check that redirects remain disabled. It needs no additional `DatabricksOpenAI` package or installation. The helper is deprecated; this is a contained proof of concept using the existing runtime, not a long-term production recommendation.
 
-The new experiment label is `sales_ai_v2_first12_client_02`, using `v2-benchmark-client2-evidence.json`. All three older evidence files (`v2-benchmark-client-evidence.json`, `v2-benchmark-simple-evidence.json` and `v2-benchmark-evidence.json`) stay untouched, including uncertain requests. Preserve any checkpoint mismatch; do not rewrite saved settings to fit this revision. The client experiment does not resume or reconcile an old API call.
+The new experiment label is `sales_ai_v2_first12_routing_01`, using `v2-benchmark-routing1-evidence.json`. All earlier evidence files, including `v2-benchmark-client2-evidence.json`, stay untouched, including uncertain requests. Preserve any checkpoint mismatch; do not rewrite saved settings to fit this revision. The routing experiment does not resume or reconcile an old API call.
+
+Both personal supervisors now have the same saved routing text. It was manually read back after refresh and matched SHA-256 `34e216...a7398`. A routes weekly customer, agreement and TCR CSM summaries to **CSM Wide Baseline V2**; B routes the same scope to **CSM Booking Scope V2**. Detail remains for booking-level drill-down only. The notebook records this contract but does not fetch the UI configuration itself.
 
 ## Where we stand
 
-The user reports good answers for all 41 questions in a manual UI test. In the notebook, cells 1–6 passed, cell 8 confirmed both connections are ready, cells 9–10 loaded, and cell 11 passed all 40 synthetic scorer checks.
+Manual UI answers are useful informal evidence, but they are not counted as a verified 41-question benchmark. In the notebook, cells 1–6 passed, cell 8 confirmed both connections are ready, cells 9–10 loaded, and cell 11 passed all 40 synthetic scorer checks for the earlier revision.
 
 The original environment is restored and verified: Databricks Connect `18.0.9`, OpenAI `2.14.0`, Databricks SDK `0.67.0` and HTTPX `0.28.1`. Do not run the retired installation blocks or add packages.
 
@@ -57,9 +59,9 @@ All 41 local code checks passed. The original API failure's cause remains unconf
 
 All **41 questions** remain the target.
 
-1. **Pause new submissions for the user's routing decision.** The smallest proposed correction is equivalent CSM-routing clarification in both personal supervisors, followed by a new instruction/experiment version. Do not rebuild tables or change production.
+1. Prepare the new `routing_01` experiment with cells 1–11 and submit one A/B pair only. Check the saved response, reader route and returned rows before continuing. Do not rebuild tables or change production.
 2. Preserve this first pair and its reference answers. Do not redefine the expected answer to match what the agents returned. Complete any further SQL, source, grain or claim review from saved evidence only; unavailable checks remain unresolved.
-3. After that decision, continue the controlled comparison. The prepared questions are **1–7, 15, 18, 20, 23 and 27**: 12 questions, three repetitions per agent, **72 planned trials**. Only two have been submitted; **70 are unsubmitted**. A revised experiment must not silently inherit these as unchanged-configuration runs.
+3. After reviewing the first routing_01 pair, continue the controlled comparison. The prepared questions are **1–7, 15, 18, 20, 23 and 27**: 12 questions, three repetitions per agent, **72 planned trials**. The new routing_01 experiment begins with all 72 unsubmitted. It must not silently inherit the earlier client2 trials.
 4. Add execution and scoring support for the remaining 29 in the same notebook. Question 30 needs two-message handling. Keep clarification, limitation and pending outcomes separate from numerical accuracy.
 
 The complete target is **246 question-level evaluations**, plus additional message turns for question 30. It is not completed or fully supported work. Preserve first-batch evidence when extending the plan, and never silently resend uncertain requests.
