@@ -1512,6 +1512,51 @@ Run this block to load the answer-recording helpers. Then use `show_trial('C01',
 # Copy rows from the saved agent response. Never copy the expected answers here.
 
 
+def inspect_saved_answers(question="C01", repetition=1):
+    """Display original saved answers and tool records without sending a request."""
+    assert V2_BENCHMARK_READY, "Load the saved experiment before inspecting answers."
+    assert question in QUESTION_IDS and type(repetition) is int and 1 <= repetition <= REPETITIONS
+    saved = load_checkpoint()
+
+    def show_value(value):
+        print(value if isinstance(value, str) else json.dumps(value, ensure_ascii=False, indent=2))
+
+    print("Required output columns:", MANIFEST["contracts"][question])
+    for arm in ("A", "B"):
+        print(f"\n{question} | Agent {arm} | Repetition {repetition}")
+        trial = saved["trials"].get(trial_id(question, arm, repetition))
+        if trial is None:
+            print("No saved response for this selection.")
+            continue
+        print("State:", trial["state"], "| Source check:", trial.get("source_check"))
+        print("Agent response status:", trial.get("response_status") or "not supplied")
+        response = trial.get("response")
+        if response is None:
+            print("No complete response was saved. Do not resend this request.")
+            continue
+        assert trial.get("response_fingerprint") == fingerprint(response), "Saved response changed."
+        items = response.get("output", [])
+        if not isinstance(items, list):
+            show_value(items)
+            continue
+        for index, item in enumerate(items, 1):
+            if not isinstance(item, dict):
+                print("Output item:", index)
+                show_value(item)
+                continue
+            print("\nOutput item:", index, "|", {key: item.get(key) for key in ("type", "name", "call_id", "role")})
+            if item.get("type") == "message":
+                content = item.get("content", [])
+                for part in content if isinstance(content, list) else [content]:
+                    show_value(part.get("text", part) if isinstance(part, dict) else part)
+            elif item.get("type") == "function_call":
+                show_value(item.get("arguments"))
+            elif item.get("type") == "function_call_output":
+                show_value(item.get("output"))
+            else:
+                show_value(item)
+
+
 def show_trial(question, arm, repetition=1):
     """Read one saved response without asking the agent again."""
     state = load_checkpoint()
@@ -1603,6 +1648,14 @@ print("Read show_trial('C01', 'A', 1), then place its actual row values in actua
 print("record_answer('C01', 'A', 1, actual_rows, note='Copied from the saved C01 A response')")
 print("Repeat for Agent B. Set narrative_correct=True only after checking the answer's claims.")
 print("Missing SQL, source and grain checks remain unavailable. Cell 14 shows the comparison.")
+
+
+if globals().get("V2_BENCHMARK_READY") is True and callable(globals().get("load_checkpoint")):
+    inspection_trials = load_checkpoint()["trials"]
+    if all(trial_id("C01", arm, 1) in inspection_trials for arm in ("A", "B")):
+        inspect_saved_answers()
+    else:
+        print("No saved C01 A/B pair is available for inspection.")
 ```
 
 ## Cell 14 | Show the A/B results from saved answers
