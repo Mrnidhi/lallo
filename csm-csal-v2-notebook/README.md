@@ -37,4 +37,5 @@ The wider 41-question and hard-scenario banks are coverage plans, not completed 
 - [Project summary](PROJECT_SUMMARY.md)
 - [Question bank](question_bank.md)
 - [Production and V2 architecture](OBSIDIAN_PRODUCTION_AND_V2.md)
+- [Simplified production and V2 diagram](reports/csm-csal-before-and-current-v2-diagram.md)
 - [Full controlled result](reports/csm-csal-v2-controlled-benchmark-results-2026-09-10.md)
