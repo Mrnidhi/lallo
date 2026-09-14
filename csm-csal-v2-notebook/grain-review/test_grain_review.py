@@ -16,9 +16,110 @@ SOURCE_PATH = Path(__file__).with_name("CSM_CSAL_GRAIN_REVIEW.py")
 TREE = ast.parse(SOURCE_PATH.read_text())
 NAMESPACE = {}
 HELPERS = ast.Module(body=[node for node in TREE.body if isinstance(node, ast.FunctionDef)
-                          and node.name in {"ident", "literal", "build_metric_query"}], type_ignores=[])
+                          and node.name in {"ident", "literal", "build_metric_query", "build_exception_queries"}], type_ignores=[])
 exec(compile(HELPERS, str(SOURCE_PATH), "exec"), NAMESPACE)
 query_builder = NAMESPACE["build_metric_query"]
+
+EXCEPTION_CONFIG = {
+    node.targets[0].id: ast.literal_eval(node.value)
+    for node in TREE.body if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name)
+    and node.targets[0].id in {"EXCEPTION_KEYS", "MONTHLY_AMOUNTS", "MQC_AMOUNTS", "CONTEXT_COLUMNS"}
+}
+
+
+class ExceptionReviewTests(unittest.TestCase):
+    def setUp(self):
+        self.db = duckdb.connect()
+        self.columns = list(dict.fromkeys(sum(EXCEPTION_CONFIG.values(), [])))
+        text_columns = set(EXCEPTION_CONFIG["EXCEPTION_KEYS"] + ["mqc_status", "swap_tier"])
+        flag_columns = {"is_volume_without_csal", "is_swap_donor", "is_swap_receiver"}
+        self.defaults = {c: "sample" if c in text_columns else False if c in flag_columns else 0
+                         for c in self.columns}
+        self.defaults.update(category="Regular CSAL", mqc_status="On Track", swap_tier="Primary")
+        definition = ", ".join(f'"{c}" ' + ("VARCHAR" if c in text_columns else "BOOLEAN" if c in flag_columns else "BIGINT")
+                               for c in self.columns)
+        self.db.execute(f"CREATE TABLE fixture ({definition})")
+        self.queries = NAMESPACE["build_exception_queries"](
+            "SELECT * FROM fixture", EXCEPTION_CONFIG["EXCEPTION_KEYS"],
+            EXCEPTION_CONFIG["MONTHLY_AMOUNTS"], EXCEPTION_CONFIG["MQC_AMOUNTS"])
+
+    def tearDown(self):
+        self.db.close()
+
+    def run_queries(self, changes):
+        rows = [{**self.defaults, **change} for change in changes]
+        self.db.executemany("INSERT INTO fixture VALUES (" + ",".join("?" for _ in self.columns) + ")",
+                            [[r[c] for c in self.columns] for r in rows])
+        outputs = []
+        for query in self.queries.values():
+            sql = sqlglot.transpile(query, read="databricks", write="duckdb")[0]
+            result = self.db.execute(sql)
+            outputs.append([dict(zip([c[0] for c in result.description], r)) for r in result.fetchall()])
+        return outputs
+
+    def test_complete_population_is_retained_without_invented_exceptions(self):
+        overlap, context, swap = self.run_queries([{}])
+        self.assertEqual(overlap[0]["missing_grouping_columns"], "NONE")
+        self.assertEqual(overlap[0]["monthly_amounts_null"], 0)
+        self.assertEqual(context, [])
+        self.assertEqual(swap[0]["source_rows"], 1)
+
+    def test_overlapping_nulls_count_one_physical_row(self):
+        nulls = {c: None for c in EXCEPTION_CONFIG["MONTHLY_AMOUNTS"] + EXCEPTION_CONFIG["MQC_AMOUNTS"]}
+        overlap, context, _ = self.run_queries([{**nulls, "sales_rep": None, "agreement": None, "booked_teu": None}])
+        self.assertEqual(overlap[0]["missing_grouping_columns"], "sales_rep, agreement")
+        self.assertEqual(overlap[0]["monthly_amounts_null"], 6)
+        self.assertEqual(overlap[0]["mqc_amounts_null"], 3)
+        self.assertTrue(overlap[0]["booked_teu_null"])
+        self.assertEqual(overlap[0]["source_rows"], 1)
+        self.assertEqual(context[0]["source_rows"], 1)
+
+    def test_disjoint_and_shared_missing_populations_are_separate(self):
+        overlap, context, _ = self.run_queries([
+            {"sales_rep": None}, {"sc_mqc": None}, {"sales_rep": None, "sc_mqc": None}])
+        self.assertEqual(len(overlap), 3)
+        self.assertEqual(sum(r["source_rows"] for r in overlap), 3)
+        self.assertEqual(sum(r["source_rows"] for r in context), 3)
+
+    def test_partial_missing_amounts_and_existing_status_are_preserved(self):
+        overlap, context, _ = self.run_queries([{"monthly_booked_teu": None, "ctd_vol": None,
+                                                "sc_mqc": None, "mqc_status": "At Risk"}])
+        self.assertEqual(overlap[0]["monthly_amounts_null"], 1)
+        self.assertEqual(overlap[0]["mqc_amounts_null"], 2)
+        self.assertEqual(context[0]["mqc_status"], "At Risk")
+
+    def test_null_blank_and_populated_tiers_are_not_merged(self):
+        _, _, swap = self.run_queries([{"swap_tier": None}, {"swap_tier": "  "}, {}])
+        self.assertEqual({r["swap_tier_state"] for r in swap}, {"NULL", "BLANK", "POPULATED"})
+        self.assertEqual(sum(r["source_rows"] for r in swap), 3)
+
+    def test_empty_tier_alone_is_not_a_missing_amount_or_identity(self):
+        overlap, context, swap = self.run_queries([{"swap_tier": None}, {"swap_tier": None}])
+        self.assertEqual(context, [])
+        self.assertEqual(overlap[0]["source_rows"], 2)
+        self.assertEqual(swap[0]["source_rows"], 2)
+
+    def test_swap_null_zero_negative_and_flags_remain_distinct(self):
+        _, _, swap = self.run_queries([{"is_swap_donor": None, "swappable_teu": None},
+                                       {"total_donor_teu_available": -9}, {}])
+        self.assertEqual(sum(r["swappable_null_rows"] for r in swap), 1)
+        self.assertEqual(sum(r["donor_available_nonzero_rows"] for r in swap), 1)
+        self.assertTrue(any(r["is_swap_donor"] is None for r in swap))
+
+    def test_blank_key_and_null_category_are_visible_without_customer_exports(self):
+        overlap, context, _ = self.run_queries([{"agreement": " ", "category": None,
+                                               "customer": "Synthetic private label"}])
+        self.assertEqual(overlap[0]["missing_grouping_columns"], "agreement, category")
+        self.assertIsNone(context[0]["category"])
+        self.assertNotIn("Synthetic private label", str(overlap) + str(context))
+
+    def test_all_queries_keep_the_supplied_version_and_month(self):
+        source = "SELECT * FROM example VERSION AS OF 90 WHERE month = 'August 2026'"
+        queries = NAMESPACE["build_exception_queries"](source, EXCEPTION_CONFIG["EXCEPTION_KEYS"],
+                    EXCEPTION_CONFIG["MONTHLY_AMOUNTS"], EXCEPTION_CONFIG["MQC_AMOUNTS"])
+        for query in queries.values():
+            self.assertEqual(query.count(source), 1)
+            self.assertNotIn("CURRENT_DATE", query.upper())
 
 
 class SqlCountFunctions:
@@ -253,16 +354,16 @@ class GrainReviewTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             NAMESPACE["literal"]("unsafe\\label")
 
-    def test_all_eight_cells_are_valid_python(self):
+    def test_all_nine_cells_are_valid_python(self):
         cells = SOURCE_PATH.read_text().split("# COMMAND ----------")
-        self.assertEqual(len(cells), 8)
+        self.assertEqual(len(cells), 9)
         for index, cell in enumerate(cells, 1):
             compile(cell, f"cell_{index}", "exec")
 
-    def test_copy_guide_matches_all_eight_source_cells(self):
+    def test_copy_guide_matches_all_nine_source_cells(self):
         source_cells = SOURCE_PATH.read_text().split("# COMMAND ----------")
         copied_cells = re.findall(r"```python\n(.*?)\n```", SOURCE_PATH.with_name("COPY_CELLS.md").read_text(), re.S)
-        self.assertEqual(len(copied_cells), 8)
+        self.assertEqual(len(copied_cells), 9)
         self.assertEqual([c.strip() for c in source_cells], [c.strip() for c in copied_cells])
 
     def test_no_company_connections_or_source_writes(self):

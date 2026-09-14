@@ -4,14 +4,14 @@ This replaces the earlier unconditional `MAX()` comparisons and the requirement 
 
 ## Start at the office
 
-1. Open [COPY_CELLS.md](COPY_CELLS.md). It contains the complete code in eight numbered Python cells.
+1. Open [COPY_CELLS.md](COPY_CELLS.md). It contains the complete code in nine numbered Python cells. If the original eight cells have completed, append and run only [Cell 9](COPY_CELLS.md#cell-9-inspect-missing-value-overlaps-and-swap-context); the first eight are unchanged.
 2. Use a separate personal analysis notebook named `CSM_CSAL_GRAIN_REVIEW`. Keep the earlier report notebook as historical evidence.
-3. Paste one block per cell and run cells 1–8 in order. No package installation is needed in Databricks. The notebook uses standard Python, PySpark and read-only SQL.
+3. For a new session, paste one block per cell and run cells 1–9 in order. No package installation is needed in Databricks. The notebook uses standard Python, PySpark and read-only SQL.
 4. Cell 1 defaults to August 2026 and selects the latest Delta version once. For historical v86 work, set `SOURCE_VERSION = 86` before running. It never silently falls back to another version.
 5. After the first run, use the printed version number explicitly for reproducibility. Rerunning with `None` may select a newer version.
 6. Stop at the first failed cell. Do not continue with old outputs. No cell contacts an agent, changes a table, creates a view, writes files or changes permissions.
 
-You can also import [CSM_CSAL_GRAIN_REVIEW.py](CSM_CSAL_GRAIN_REVIEW.py) as a Databricks source notebook. That file and the eight blocks in the copy guide are identical.
+You can also import [CSM_CSAL_GRAIN_REVIEW.py](CSM_CSAL_GRAIN_REVIEW.py) as a Databricks source notebook. That file and the nine blocks in the copy guide are identical.
 
 ### If Cell 2 failed with `int() ... not 'NoneType'`
 
@@ -31,8 +31,31 @@ The previous blank-count expression used `SUM` over a nullable condition. For an
 | 6 | Examine all 25 listed amounts/counts across allocation, booking, commitment, monthly and agreement context | Candidate totals, blockers and excluded-row counts |
 | 7 | Print exact SQL for one metric, display its result and test added grouping columns | SQL code and result for each evidence case |
 | 8 | Record completion metadata and whether the source advanced during the run | End-of-run source-version check |
+| 9 | Inspect missing-value overlaps, business-category context and swap-tier availability | All three aggregate outputs and the printed source version |
 
 Cell 5 makes several aggregate scans. It covers the source's actual columns, whether there are 79, 82 or another number. Coverage does not mean every business definition is approved. Complex types are reported as requiring review rather than silently converted to strings. Grouping fields are marked as such: a key column is constant within its own group by construction.
+
+## Continue after the eight-cell review
+
+Append Cell 9 to the same notebook and run only that cell. It reopens the exact version and month recorded by Cell 1 and checks the source identity, schema and row count. It never switches to current data. If the session has restarted, set the recorded version explicitly in Cell 1 before rerunning. No table, view, file or agent is created by Cell 9.
+
+Its three outputs are:
+
+1. **Missing-value overlaps.** Every source row belongs to exactly one pattern, including rows unaffected by these checks. `monthly_amounts_null` is the number of missing fields out of six monthly amounts; `mqc_amounts_null` is the number out of three MQC amounts. These are field counts within a row, not additional missing records. `NONE` means none of the eight grouping attributes is null or blank. Missing identities, monthly amounts, MQC amounts and booked TEU can occur on the same row; do not add their marginal counts together.
+2. **Business context.** Only rows affected by those checks, grouped by their existing category, No CSAL flag, MQC status and missing-value pattern. The cell does not reclassify a row as valid or erroneous. An empty result means no rows met these missing-value conditions, not a certified dataset.
+3. **Swap-tier availability.** All rows, with null, blank and populated tiers kept separate, alongside stored donor/receiver flags and counts of null or nonzero amounts. Negative amounts count as nonzero. No potentially repeated business measures are summed here. An empty tier alone does not place every row in the missing-identity/monthly/MQC exception population.
+
+Paste the three aggregate outputs into the same review chat. Do not publish the notebook export or source-level records to the public repository. All generated SQL remains available in the `exception_queries` dictionary inside the notebook if needed for an office screenshot.
+
+### Leads from the previously supplied producer code
+
+These are observations about the saved code, not proof of the code deployed for the selected Delta version:
+
+- The final monthly join uses ordinary equality on month, customer, sales representative, agreement and service. A null sales representative or agreement cannot match through those equality conditions. If the deployed code is the same, this is a possible explanation for missing monthly values; Cell 9 tests whether the populations overlap. Do not replace equality with null-safe matching without validating entity identity and the intended rule.
+- MQC context is left-joined by agreement after restricting the source to selected trade bounds. Missing context can reflect an unmatched agreement, that filter or null source amounts. The saved status expression defaults to `At Risk` when the preceding comparisons do not match, so the status alone does not establish that MQC inputs are present.
+- The saved swap-tier expression explicitly returns NULL for expired cutoffs and current or past reporting weeks. Empty tiers for a historical month may therefore be expected. Confirm the producer execution date and deployed rule; do not recalculate historical eligibility using today's date.
+
+The next decision is to establish which missing values are expected, which are unknown and which are unexpected. This cell does not fill values, remove rows, correct totals or establish a production-agent failure. The producer's calculation rules also need review before treating a repeated monthly value as a business-approved reference total.
 
 ## How the numerical check works
 
@@ -144,9 +167,9 @@ Keep correct, incorrect, unresolved, refused and failed-execution outcomes in th
 
 ## Validation of this code
 
-The test suite passes 33 automated checks, including syntax for all eight cells and exact agreement between the source notebook and copy guide. Synthetic cases cover conflicts, nulls, missing keys, independent entities with equal amounts, precision, signed values, NaN/infinity, overflow, empty inputs and added-key sensitivity. Regression cases reproduce the earlier null-count failure and check all-null strings, all-null floating-point values, blank strings and invalid numbers.
+The test suite passes 42 automated checks, including syntax for all nine cells and exact agreement between the source notebook and copy guide. Synthetic cases cover conflicts, nulls, missing keys, independent entities with equal amounts, precision, signed values, NaN/infinity, overflow, empty inputs and added-key sensitivity. Regression cases reproduce the earlier null-count failure and check all-null strings, all-null floating-point values, blank strings and invalid numbers. The follow-up SQL is tested for overlapping and disjoint missing populations, partial missing amounts, null/blank tiers, unchanged category and status values, repeated physical rows, preserved snapshot filters and aggregate-only outputs.
 
-The metric SQL is parsed as Databricks SQL and translated for local execution with DuckDB. The row-count helper is tested through its SQL-equivalent `COUNT(CASE WHEN ...)` expression; this is not a real PySpark execution. These checks use no corporate data and do not constitute Databricks runtime or production-data validation. The PySpark profiling cells still require execution in your workspace.
+The metric and follow-up SQL are parsed as Databricks SQL and translated for local execution with DuckDB. The row-count helper is tested through its SQL-equivalent `COUNT(CASE WHEN ...)` expression; this is not a real PySpark execution. These local checks use no corporate data and do not constitute Databricks runtime or production-data validation. The new Cell 9 still requires execution in your workspace.
 
 The notebook never guarantees 100% business correctness. Its purpose is to make assumptions, observations and unresolved evidence explicit so the eventual conclusion can be defended.
 
@@ -155,5 +178,7 @@ The notebook never guarantees 100% business correctness. Its purpose is to make 
 Grain represents what one row measures and should be established before choosing facts or dimensions. Sample uniqueness or lower totals cannot establish that meaning alone. [Kimball Group: grain](https://www.kimballgroup.com/data-warehouse-business-intelligence-resources/kimball-techniques/dimensional-modeling-techniques/grain/)
 
 The null-aware tests follow documented `COUNT(DISTINCT)` behaviour. [Databricks COUNT](https://docs.databricks.com/aws/en/sql/language-manual/functions/count)
+
+The missing-field labels use `concat_ws`, which ignores null label expressions; it does not fill missing source values. [Databricks concat_ws](https://docs.databricks.com/gcp/en/sql/language-manual/functions/concat_ws)
 
 The source version is pinned because a live table can change between checks. Historical access depends on retained data files as well as log history; the notebook does not substitute current data if time travel fails. [Databricks table history](https://docs.databricks.com/aws/en/tables/history)

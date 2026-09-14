@@ -373,3 +373,113 @@ print(json.dumps({
 print("Retain every planned outcome: consistent, conflicting, incomplete, unchanged and unsupported.")
 print("Same-number agreement with a raw sum is an observed pattern; inspect the agent's SQL/tool trace before attributing a cause.")
 print("The next evidence is the deployed producer grouping/join logic, identity rules, approved formulas and the agent's actual query scope.")
+
+# COMMAND ----------
+# DBTITLE 1,9. Inspect missing-value overlaps and swap context
+required_state = ["TABLE_SQL", "SOURCE_TABLE_ID", "PINNED_VERSION", "REPORT_MONTH",
+                  "SOURCE_ROWS", "SCHEMA_HASH", "ident", "literal"]
+missing_state = [name for name in required_state if name not in globals()]
+if missing_state:
+    raise RuntimeError(
+        "The earlier notebook session is unavailable. Run from Cell 1 using the "
+        "previously recorded SOURCE_VERSION, then return to Cell 9."
+    )
+
+EXCEPTION_KEYS = ["month", "week_num", "customer", "sales_rep", "agreement", "tcr", "service", "category"]
+MONTHLY_AMOUNTS = ["monthly_reviewed_teu", "monthly_total_reviewed_teu",
+                   "monthly_confirmed_teu", "monthly_cancelled_teu",
+                   "monthly_rejected_teu", "monthly_booked_teu"]
+MQC_AMOUNTS = ["sc_mqc", "ctd_vol", "ctd_prorated_mqc"]
+CONTEXT_COLUMNS = ["booked_teu", "is_volume_without_csal", "mqc_status",
+                   "swap_tier", "is_swap_donor", "is_swap_receiver",
+                   "swappable_teu", "swap_demand_teu", "total_donor_teu_available"]
+
+# Read the recorded version explicitly; do not depend on an overwritten DataFrame.
+exception_source_sql = (
+    f"SELECT * FROM {TABLE_SQL} VERSION AS OF {PINNED_VERSION} "
+    f"WHERE {ident('month')} = {literal(REPORT_MONTH)}"
+)
+if spark.sql(f"DESCRIBE DETAIL {TABLE_SQL}").select("id").first()["id"] != SOURCE_TABLE_ID:
+    raise RuntimeError("Source table identity changed. Start a separate review.")
+exception_source_df = spark.sql(exception_source_sql)
+required_columns = set(EXCEPTION_KEYS + MONTHLY_AMOUNTS + MQC_AMOUNTS + CONTEXT_COLUMNS)
+absent_columns = sorted(required_columns - set(exception_source_df.columns))
+if absent_columns:
+    raise RuntimeError(f"Required columns are missing: {absent_columns}")
+if sha256(exception_source_df.schema.json().encode()).hexdigest() != SCHEMA_HASH:
+    raise RuntimeError("The schema differs from Cell 1. Do not combine these results.")
+if exception_source_df.count() != SOURCE_ROWS:
+    raise RuntimeError("The selected population differs from Cell 1. Stop and check the source.")
+
+def build_exception_queries(source_sql, key_columns, monthly_columns, mqc_columns):
+    """Return aggregate-only queries. No customer records or business totals are exported."""
+    missing_labels = ", ".join(
+        f"CASE WHEN {ident(k)} IS NULL OR TRIM({ident(k)}) = '' THEN {literal(k)} END"
+        for k in key_columns
+    )
+    monthly_nulls = " + ".join(f"CASE WHEN {ident(c)} IS NULL THEN 1 ELSE 0 END" for c in monthly_columns)
+    mqc_nulls = " + ".join(f"CASE WHEN {ident(c)} IS NULL THEN 1 ELSE 0 END" for c in mqc_columns)
+    base = f"""WITH source_data AS ({source_sql}),
+    labelled AS (
+      SELECT *,
+             COALESCE(NULLIF(CONCAT_WS(', ', {missing_labels}), ''), 'NONE') AS missing_grouping_columns,
+             ({monthly_nulls}) AS monthly_amounts_null,
+             ({mqc_nulls}) AS mqc_amounts_null,
+             booked_teu IS NULL AS booked_teu_null
+      FROM source_data
+    )
+    """
+    pattern = "missing_grouping_columns, monthly_amounts_null, mqc_amounts_null, booked_teu_null"
+    return {
+        "1. Missing-value overlaps — includes the unaffected population": base + f"""
+          SELECT {pattern}, COUNT(*) AS source_rows
+          FROM labelled
+          GROUP BY {pattern}
+          ORDER BY source_rows DESC, {pattern}
+        """,
+        "2. Business context — affected rows only": base + f"""
+          SELECT category, is_volume_without_csal, mqc_status,
+                 {pattern}, COUNT(*) AS source_rows
+          FROM labelled
+          WHERE missing_grouping_columns <> 'NONE'
+             OR monthly_amounts_null > 0 OR mqc_amounts_null > 0 OR booked_teu_null
+          GROUP BY category, is_volume_without_csal, mqc_status, {pattern}
+          ORDER BY source_rows DESC, category, is_volume_without_csal, mqc_status, {pattern}
+        """,
+        "3. Swap-tier availability — all source rows": f"""
+          WITH source_data AS ({source_sql}), tier_context AS (
+            SELECT *,
+                   CASE WHEN swap_tier IS NULL THEN 'NULL'
+                        WHEN TRIM(swap_tier) = '' THEN 'BLANK'
+                        ELSE 'POPULATED' END AS swap_tier_state
+            FROM source_data
+          )
+          SELECT swap_tier_state, is_swap_donor, is_swap_receiver,
+                 COUNT(*) AS source_rows,
+                 COUNT(CASE WHEN swappable_teu IS NULL THEN 1 END) AS swappable_null_rows,
+                 COUNT(CASE WHEN swappable_teu <> 0 THEN 1 END) AS swappable_nonzero_rows,
+                 COUNT(CASE WHEN swap_demand_teu IS NULL THEN 1 END) AS demand_null_rows,
+                 COUNT(CASE WHEN swap_demand_teu <> 0 THEN 1 END) AS demand_nonzero_rows,
+                 COUNT(CASE WHEN total_donor_teu_available IS NULL THEN 1 END) AS donor_available_null_rows,
+                 COUNT(CASE WHEN total_donor_teu_available <> 0 THEN 1 END) AS donor_available_nonzero_rows
+          FROM tier_context
+          GROUP BY swap_tier_state, is_swap_donor, is_swap_receiver
+          ORDER BY swap_tier_state, is_swap_donor, is_swap_receiver
+        """,
+    }
+
+exception_queries = build_exception_queries(
+    exception_source_sql, EXCEPTION_KEYS, MONTHLY_AMOUNTS, MQC_AMOUNTS
+)
+print(f"Version {PINNED_VERSION}; {REPORT_MONTH}; {SOURCE_ROWS:,} source rows.")
+print("monthly_amounts_null counts missing fields out of 6; mqc_amounts_null counts missing fields out of 3.")
+print("Each row belongs to one overlap pattern. Do not add marginal missing-value counts together.")
+for label, query in exception_queries.items():
+    print(label)
+    display(spark.sql(query))
+
+if spark.sql(f"DESCRIBE DETAIL {TABLE_SQL}").select("id").first()["id"] != SOURCE_TABLE_ID:
+    raise RuntimeError("Source table identity changed during the follow-up. Do not combine results.")
+print(f"Cell 9 completed at {datetime.now(timezone.utc).isoformat()}.")
+print("These outputs describe missingness and context. They do not establish a failed join or an agent error.")
+print("A No CSAL label, an empty tier or a missing MQC value still needs its producer-rule explanation.")
