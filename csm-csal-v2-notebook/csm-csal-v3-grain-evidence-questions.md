@@ -1,63 +1,20 @@
-# CSM/CSAL V3 production-agent evidence questions
+# CSM/CSAL V3 evidence topics
 
-Use each question in a fresh production-agent conversation. The wording is frozen for this evidence run.
+Use [the current guide](grain-review/README.md) and [copy-ready notebook](grain-review/COPY_CELLS.md) for the analysis. The old prompts dictated a grain and formula before establishing their validity; they are superseded for the neutral production comparison.
 
-## E01
+Use these questions as fixed topics, not a requirement to find ten failures. Each fresh production main-agent chat uses one question. Retain every outcome. If the selected period changes, change it consistently in all questions and SQL before the run.
 
-```text
-For August 2026, what was the total booked TEU? Count each customer, agreement, reporting week, service and TCR combination once, even when it appears in more than one CSAL allocation category.
-```
+1. For August 2026, what is the total monthly booked TEU?
+2. For August 2026, what is the total monthly cancelled TEU?
+3. For August 2026, what is the total monthly rejected TEU?
+4. For August 2026, what is the total monthly confirmed TEU?
+5. For August 2026, what is the total booked TEU?
+6. For August 2026, what is the total confirmed TEU?
+7. For August 2026, what is the total cancelled TEU?
+8. For August 2026, what is the total rejected TEU?
+9. For August 2026, what is the total no-show TEU?
+10. For August 2026, what is the total terminated TEU?
 
-## E02
+The notebook also tests the other mapped amount/count fields and profiles every current column. A focused ten-topic report is not an accuracy test covering all business questions.
 
-```text
-For August 2026, what was the total reviewed commitment? Count it once for each customer, agreement, reporting week and service, rather than counting it again for every TCR or allocation category.
-```
-
-## E03
-
-```text
-For August 2026, what was the monthly reviewed TEU? Count each month, customer, sales representative, agreement and service combination once.
-```
-
-## E04
-
-```text
-Across the agreements shown for August 2026, what was the total SC MQC? Count each agreement once rather than once for every booking or allocation row.
-```
-
-## E05
-
-```text
-For August 2026, what was the total reviewed allocation TEU? Use the detailed allocation rows and tell me whether removing repeated booking information changes this allocation total.
-```
-
-## E06
-
-```text
-In August 2026, how many customer, agreement, reporting week, service and TCR combinations appeared in more than one allocation category? Also tell me how many of those combinations had more than one value for the volume without CSAL flag.
-```
-
-## E07
-
-```text
-In August 2026, how many customer, agreement, reporting week, service and TCR combinations had more than one days-to-cutoff value? Do not choose one cutoff value when the source contains different values.
-```
-
-## E08
-
-```text
-For August 2026, find the customer, agreement, reporting week and service combination that has the most TCRs. Show confirmed and booked TEU for each TCR, followed by one separate row containing its total reviewed commitment. Do not repeat or add that commitment for every TCR.
-```
-
-## E09
-
-```text
-For August 2026, what was the overall cancellation percentage? Calculate it from total cancelled TEU divided by total booked TEU after counting each customer, agreement, reporting week, service and TCR combination once. Do not average the stored row percentages.
-```
-
-## E10
-
-```text
-For August 2026, how many detailed allocation rows have a missing agreement, a missing sales representative, or both? Keep these records in the result and show the three groups separately.
-```
+Questions and agent answers require an independently justified reference before scoring. Record source/version/filter alignment. A match to a direct sum alone does not prove the agent's query or the cause of a wrong answer.
