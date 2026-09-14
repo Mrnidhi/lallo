@@ -16,7 +16,7 @@ SOURCE_PATH = Path(__file__).with_name("CSM_CSAL_GRAIN_REVIEW.py")
 TREE = ast.parse(SOURCE_PATH.read_text())
 NAMESPACE = {}
 HELPERS = ast.Module(body=[node for node in TREE.body if isinstance(node, ast.FunctionDef)
-                          and node.name in {"ident", "literal", "build_metric_query", "build_exception_queries"}], type_ignores=[])
+                          and node.name in {"ident", "literal", "build_metric_query", "build_exception_queries", "build_rule_check_queries"}], type_ignores=[])
 exec(compile(HELPERS, str(SOURCE_PATH), "exec"), NAMESPACE)
 query_builder = NAMESPACE["build_metric_query"]
 
@@ -118,6 +118,104 @@ class ExceptionReviewTests(unittest.TestCase):
         queries = NAMESPACE["build_exception_queries"](source, EXCEPTION_CONFIG["EXCEPTION_KEYS"],
                     EXCEPTION_CONFIG["MONTHLY_AMOUNTS"], EXCEPTION_CONFIG["MQC_AMOUNTS"])
         for query in queries.values():
+            self.assertEqual(query.count(source), 1)
+            self.assertNotIn("CURRENT_DATE", query.upper())
+
+
+class SavedRuleTests(unittest.TestCase):
+    def setUp(self):
+        ExceptionReviewTests.setUp(self)
+        self.monthly_keys = ["month", "customer", "sales_rep", "agreement", "service"]
+        self.queries = NAMESPACE["build_rule_check_queries"](
+            "SELECT * FROM fixture", self.monthly_keys,
+            EXCEPTION_CONFIG["MONTHLY_AMOUNTS"], EXCEPTION_CONFIG["MQC_AMOUNTS"])
+
+    tearDown = ExceptionReviewTests.tearDown
+    run_queries = ExceptionReviewTests.run_queries
+
+    def test_monthly_key_index_does_not_multiply_repeated_physical_rows(self):
+        monthly, _ = self.run_queries([{}, {}, {}])
+        self.assertEqual(len(monthly), 1)
+        self.assertEqual(monthly[0]["source_rows"], 3)
+        self.assertTrue(monthly[0]["equality_match_in_simulation"])
+        self.assertTrue(monthly[0]["null_safe_match_in_simulation"])
+
+    def test_each_null_join_attribute_blocks_ordinary_equality(self):
+        monthly, _ = self.run_queries([{k: None} for k in self.monthly_keys])
+        self.assertEqual({r["null_join_columns"] for r in monthly}, set(self.monthly_keys))
+        self.assertEqual(sum(r["source_rows"] for r in monthly), 5)
+        self.assertTrue(all(not r["equality_match_in_simulation"] for r in monthly))
+        self.assertTrue(all(r["null_safe_match_in_simulation"] for r in monthly))
+
+    def test_blank_keys_are_visible_but_not_treated_as_sql_null(self):
+        monthly, _ = self.run_queries([{"sales_rep": "  "}, {"sales_rep": None}])
+        blank = next(r for r in monthly if r["blank_join_columns"] == "sales_rep")
+        self.assertEqual(blank["null_join_columns"], "NONE")
+        self.assertTrue(blank["equality_match_in_simulation"])
+
+    def test_missing_monthly_values_can_exist_without_null_join_keys(self):
+        monthly, _ = self.run_queries([{c: None for c in EXCEPTION_CONFIG["MONTHLY_AMOUNTS"]}])
+        self.assertEqual(monthly[0]["monthly_amounts_null"], 6)
+        self.assertTrue(monthly[0]["equality_match_in_simulation"])
+
+    def test_fully_null_keys_match_only_the_synthetic_null_safe_index(self):
+        empty_key = {k: None for k in self.monthly_keys}
+        monthly, _ = self.run_queries([empty_key, empty_key])
+        self.assertEqual(monthly[0]["source_rows"], 2)
+        self.assertFalse(monthly[0]["equality_match_in_simulation"])
+        self.assertTrue(monthly[0]["null_safe_match_in_simulation"])
+
+    def test_saved_thresholds_use_the_unrounded_ratio(self):
+        _, statuses = self.run_queries([
+            {"ctd_vol": n, "ctd_prorated_mqc": d, "mqc_status": status}
+            for n, d, status in [(100, 100, "Ahead"), (80, 100, "On Track"),
+                                 (50, 100, "Behind"), (49, 100, "At Risk"),
+                                 (79999, 100000, "Behind")]])
+        self.assertEqual(sum(r["source_rows"] for r in statuses), 5)
+        self.assertTrue(all(r["rule_comparison"] == "MATCHES_SAVED_RULE" for r in statuses))
+
+    def test_missing_inputs_and_zero_denominator_replay_the_fallback(self):
+        _, statuses = self.run_queries([
+            {"ctd_vol": n, "ctd_prorated_mqc": d, "mqc_status": "At Risk"}
+            for n, d in [(None, 100), (10, None), (None, None), (10, 0)]])
+        self.assertEqual(sum(r["source_rows"] for r in statuses), 4)
+        self.assertTrue(all(r["saved_rule_status"] == "At Risk" for r in statuses))
+        self.assertEqual(sum(r["source_rows"] for r in statuses if r["ratio_inputs_missing"]), 3)
+        self.assertEqual(sum(r["source_rows"] for r in statuses if r["denominator_is_zero"]), 1)
+
+    def test_missing_sc_mqc_is_not_a_missing_ratio_input(self):
+        _, statuses = self.run_queries([{"sc_mqc": None, "ctd_vol": 80, "ctd_prorated_mqc": 100}])
+        self.assertEqual(statuses[0]["mqc_amounts_null"], 1)
+        self.assertFalse(statuses[0]["ratio_inputs_missing"])
+        self.assertEqual(statuses[0]["saved_rule_status"], "On Track")
+
+    def test_negative_ratio_inputs_are_flagged_without_rewriting_the_rule(self):
+        _, statuses = self.run_queries([{"ctd_vol": -100, "ctd_prorated_mqc": -100, "mqc_status": "Ahead"}])
+        self.assertTrue(statuses[0]["negative_ratio_input"])
+        self.assertEqual(statuses[0]["saved_rule_status"], "Ahead")
+
+    def test_null_stored_status_is_a_visible_rule_difference(self):
+        _, statuses = self.run_queries([{"mqc_status": None}])
+        self.assertIsNone(statuses[0]["stored_mqc_status"])
+        self.assertEqual(statuses[0]["rule_comparison"], "DIFFERS_FROM_SAVED_RULE")
+
+    def test_matching_and_differing_outcomes_are_both_retained(self):
+        _, statuses = self.run_queries([{"mqc_status": "At Risk"}, {"mqc_status": "Behind"}])
+        self.assertEqual({r["rule_comparison"] for r in statuses},
+                         {"MATCHES_SAVED_RULE", "DIFFERS_FROM_SAVED_RULE"})
+        self.assertEqual(sum(r["source_rows"] for r in statuses), 2)
+
+    def test_rule_outputs_do_not_export_customer_identity_or_amount_values(self):
+        outputs = self.run_queries([{"customer": "Synthetic private identity", "ctd_vol": 1234567}])
+        self.assertNotIn("Synthetic private identity", str(outputs))
+        self.assertNotIn("1234567", str(outputs))
+
+    def test_rule_queries_retain_the_explicit_snapshot_and_month(self):
+        source = "SELECT * FROM example VERSION AS OF 90 WHERE month = 'August 2026'"
+        for query in NAMESPACE["build_rule_check_queries"](
+                source, self.monthly_keys, EXCEPTION_CONFIG["MONTHLY_AMOUNTS"],
+                EXCEPTION_CONFIG["MQC_AMOUNTS"]).values():
+            sqlglot.parse_one(query, read="databricks")
             self.assertEqual(query.count(source), 1)
             self.assertNotIn("CURRENT_DATE", query.upper())
 
@@ -354,16 +452,16 @@ class GrainReviewTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             NAMESPACE["literal"]("unsafe\\label")
 
-    def test_all_nine_cells_are_valid_python(self):
+    def test_all_ten_cells_are_valid_python(self):
         cells = SOURCE_PATH.read_text().split("# COMMAND ----------")
-        self.assertEqual(len(cells), 9)
+        self.assertEqual(len(cells), 10)
         for index, cell in enumerate(cells, 1):
             compile(cell, f"cell_{index}", "exec")
 
-    def test_copy_guide_matches_all_nine_source_cells(self):
+    def test_copy_guide_matches_all_ten_source_cells(self):
         source_cells = SOURCE_PATH.read_text().split("# COMMAND ----------")
         copied_cells = re.findall(r"```python\n(.*?)\n```", SOURCE_PATH.with_name("COPY_CELLS.md").read_text(), re.S)
-        self.assertEqual(len(copied_cells), 9)
+        self.assertEqual(len(copied_cells), 10)
         self.assertEqual([c.strip() for c in source_cells], [c.strip() for c in copied_cells])
 
     def test_no_company_connections_or_source_writes(self):

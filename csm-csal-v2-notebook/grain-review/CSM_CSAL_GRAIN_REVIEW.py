@@ -483,3 +483,155 @@ if spark.sql(f"DESCRIBE DETAIL {TABLE_SQL}").select("id").first()["id"] != SOURC
 print(f"Cell 9 completed at {datetime.now(timezone.utc).isoformat()}.")
 print("These outputs describe missingness and context. They do not establish a failed join or an agent error.")
 print("A No CSAL label, an empty tier or a missing MQC value still needs its producer-rule explanation.")
+
+# COMMAND ----------
+# DBTITLE 1,10. Check the saved monthly and MQC rules
+required_state = ["TABLE_SQL", "SOURCE_TABLE_ID", "PINNED_VERSION", "REPORT_MONTH",
+                  "SOURCE_ROWS", "SCHEMA_HASH", "MONTHLY_AMOUNTS", "MQC_AMOUNTS"]
+if any(name not in globals() for name in required_state):
+    raise RuntimeError("Run the earlier cells using the recorded SOURCE_VERSION before Cell 10.")
+
+rule_source_sql = (
+    f"SELECT * FROM {TABLE_SQL} VERSION AS OF {PINNED_VERSION} "
+    f"WHERE {ident('month')} = {literal(REPORT_MONTH)}"
+)
+if spark.sql(f"DESCRIBE DETAIL {TABLE_SQL}").select("id").first()["id"] != SOURCE_TABLE_ID:
+    raise RuntimeError("Source table identity changed. Start a separate review.")
+rule_source_df = spark.sql(rule_source_sql)
+if sha256(rule_source_df.schema.json().encode()).hexdigest() != SCHEMA_HASH:
+    raise RuntimeError("The schema differs from Cell 1.")
+if rule_source_df.count() != SOURCE_ROWS:
+    raise RuntimeError("The source population differs from Cell 1.")
+
+MONTHLY_JOIN_KEYS = ["month", "customer", "sales_rep", "agreement", "service"]
+rule_types = {field.name: field.dataType for field in rule_source_df.schema.fields}
+required_columns = MONTHLY_JOIN_KEYS + MONTHLY_AMOUNTS + MQC_AMOUNTS + ["mqc_status"]
+if set(required_columns) - set(rule_types):
+    raise RuntimeError("A required monthly or MQC column is missing.")
+if not all(isinstance(rule_types[c], T.StringType) for c in MONTHLY_JOIN_KEYS + ["mqc_status"]):
+    raise TypeError("The key or status types changed. Review them before replaying the saved rules.")
+integer_types = (T.ByteType, T.ShortType, T.IntegerType, T.LongType)
+if not all(isinstance(rule_types[c], integer_types) for c in MQC_AMOUNTS):
+    raise TypeError("The saved MQC rule uses integer inputs. Review the changed types before replaying it.")
+
+def build_rule_check_queries(source_sql, monthly_keys, monthly_columns, mqc_columns):
+    """Test join semantics and replay a saved rule; neither is a production fix."""
+    keys_sql = ", ".join(ident(k) for k in monthly_keys)
+    equality_join = " AND ".join(f"s.{ident(k)} = e.{ident(k)}" for k in monthly_keys)
+    null_safe_join = " AND ".join(f"s.{ident(k)} <=> n.{ident(k)}" for k in monthly_keys)
+    null_labels = ", ".join(
+        f"CASE WHEN s.{ident(k)} IS NULL THEN {literal(k)} END" for k in monthly_keys
+    )
+    blank_labels = ", ".join(
+        f"CASE WHEN TRIM(s.{ident(k)}) = '' THEN {literal(k)} END" for k in monthly_keys
+    )
+    monthly_nulls = " + ".join(
+        f"CASE WHEN s.{ident(c)} IS NULL THEN 1 ELSE 0 END" for c in monthly_columns
+    )
+    mqc_nulls = " + ".join(
+        f"CASE WHEN {ident(c)} IS NULL THEN 1 ELSE 0 END" for c in mqc_columns
+    )
+    return {
+        "1. Monthly join simulation — key index from the same Gold rows": f"""
+          WITH source_data AS ({source_sql}),
+          key_index AS (
+            SELECT DISTINCT {keys_sql}, 1 AS present FROM source_data
+          ), join_check AS (
+            SELECT
+              COALESCE(NULLIF(CONCAT_WS(', ', {null_labels}), ''), 'NONE') AS null_join_columns,
+              COALESCE(NULLIF(CONCAT_WS(', ', {blank_labels}), ''), 'NONE') AS blank_join_columns,
+              ({monthly_nulls}) AS monthly_amounts_null,
+              e.present IS NOT NULL AS equality_match_in_simulation,
+              n.present IS NOT NULL AS null_safe_match_in_simulation
+            FROM source_data s
+            LEFT JOIN key_index e ON {equality_join}
+            LEFT JOIN key_index n ON {null_safe_join}
+          )
+          SELECT null_join_columns, blank_join_columns, monthly_amounts_null,
+                 equality_match_in_simulation, null_safe_match_in_simulation,
+                 COUNT(*) AS source_rows
+          FROM join_check
+          GROUP BY null_join_columns, blank_join_columns, monthly_amounts_null,
+                   equality_match_in_simulation, null_safe_match_in_simulation
+          ORDER BY source_rows DESC, null_join_columns, blank_join_columns, monthly_amounts_null
+        """,
+        "2. MQC status — saved rule replay, not a business correctness score": f"""
+          WITH source_data AS ({source_sql}), inputs AS (
+            SELECT mqc_status AS stored_mqc_status,
+                   ({mqc_nulls}) AS mqc_amounts_null,
+                   ctd_vol IS NULL OR ctd_prorated_mqc IS NULL AS ratio_inputs_missing,
+                   COALESCE(ctd_prorated_mqc = 0, FALSE) AS denominator_is_zero,
+                   COALESCE(ctd_vol < 0, FALSE) OR COALESCE(ctd_prorated_mqc < 0, FALSE)
+                     AS negative_ratio_input,
+                   (ctd_vol / NULLIF(ctd_prorated_mqc, 0)) * 100 AS saved_unrounded_pct
+            FROM source_data
+          ), replay AS (
+            SELECT *,
+                   CASE WHEN saved_unrounded_pct >= 100 THEN 'Ahead'
+                        WHEN saved_unrounded_pct >= 80 THEN 'On Track'
+                        WHEN saved_unrounded_pct >= 50 THEN 'Behind'
+                        ELSE 'At Risk' END AS saved_rule_status
+            FROM inputs
+          ), compared AS (
+            SELECT *,
+                   CASE WHEN stored_mqc_status <=> saved_rule_status
+                        THEN 'MATCHES_SAVED_RULE' ELSE 'DIFFERS_FROM_SAVED_RULE' END AS rule_comparison
+            FROM replay
+          )
+          SELECT mqc_amounts_null, ratio_inputs_missing, denominator_is_zero,
+                 negative_ratio_input, stored_mqc_status, saved_rule_status,
+                 rule_comparison, COUNT(*) AS source_rows
+          FROM compared
+          GROUP BY mqc_amounts_null, ratio_inputs_missing, denominator_is_zero,
+                   negative_ratio_input, stored_mqc_status, saved_rule_status, rule_comparison
+          ORDER BY source_rows DESC, mqc_amounts_null, stored_mqc_status, saved_rule_status,
+                   ratio_inputs_missing, denominator_is_zero, negative_ratio_input
+        """,
+    }
+
+rule_check_queries = build_rule_check_queries(
+    rule_source_sql, MONTHLY_JOIN_KEYS, MONTHLY_AMOUNTS, MQC_AMOUNTS
+)
+print(f"Version {PINNED_VERSION}; {REPORT_MONTH}; {SOURCE_ROWS:,} source rows.")
+for label, query in rule_check_queries.items():
+    result_df = spark.sql(query)
+    result_rows = result_df.collect()
+    if sum(row["source_rows"] for row in result_rows) != SOURCE_ROWS:
+        raise RuntimeError(f"Row accounting failed for: {label}. Do not use this output.")
+    print(label)
+    display(spark.createDataFrame(result_rows, schema=result_df.schema))
+
+# Show only writer references, not user identities, job names or arbitrary metadata.
+print("3. Writer references recorded for the pinned Delta version")
+try:
+    writer_history = spark.sql(f"DESCRIBE HISTORY {TABLE_SQL}").filter(F.col("version") == PINNED_VERSION)
+    visible_fields = [c for c in ["version", "timestamp", "operation", "notebook", "job"]
+                      if c in writer_history.columns]
+    writer_rows = writer_history.select(*visible_fields).limit(2).collect()
+    if len(writer_rows) != 1:
+        print("Writer references unavailable or ambiguous for this version.")
+    else:
+        writer = writer_rows[0].asDict(recursive=True)
+        notebook_ref = writer.get("notebook") or {}
+        job_ref = writer.get("job") or {}
+        print(json.dumps({
+            "version": writer.get("version"),
+            "write_timestamp": str(writer.get("timestamp")),
+            "timestamp_timezone": spark.conf.get("spark.sql.session.timeZone"),
+            "operation": writer.get("operation"),
+            "notebook_id": notebook_ref.get("notebookId"),
+            "job_id": job_ref.get("jobId"),
+            "job_run_id": job_ref.get("jobRunId"),
+            "run_id": job_ref.get("runId"),
+            "historical_producer_code_verified": False,
+        }, indent=2))
+except Exception as error:
+    print(f"Writer metadata unavailable ({type(error).__name__}). Producer identity remains unverified.")
+
+if spark.sql(f"DESCRIBE DETAIL {TABLE_SQL}").select("id").first()["id"] != SOURCE_TABLE_ID:
+    raise RuntimeError("Source table identity changed during Cell 10. Do not combine the results.")
+print(f"Cell 10 completed at {datetime.now(timezone.utc).isoformat()}.")
+print("The monthly index is built from these same Gold keys, so null-safe matches are expected by construction.")
+print("It does not reproduce the upstream monthly aggregate, recover missing amounts or validate unknown identities.")
+print("An MQC rule match is not proof that the classification is appropriate or that this exact code was deployed.")
+print("Use the writer references to inspect the producing run and its code. No data or agent configuration was changed.")
