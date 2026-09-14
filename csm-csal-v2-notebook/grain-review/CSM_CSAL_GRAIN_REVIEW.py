@@ -85,13 +85,17 @@ def invalid_number_expression(name):
         return F.isnan(value) | (F.abs(value) == F.lit(float("inf")))
     return F.lit(False)
 
+def count_matching_rows(condition):
+    # Count true matches. NULL is not a match and remains visible in null_rows.
+    return F.count(F.when(condition, F.lit(1)))
+
 quality_expressions = []
 for position, (name, dtype) in enumerate(DATA_TYPES.items()):
     value = F.col(ident(name))
     quality_expressions.extend([
-        F.sum(value.isNull().cast("long")).alias(f"null_{position}"),
-        F.sum(invalid_number_expression(name).cast("long")).alias(f"invalid_{position}"),
-        F.sum(((F.trim(value) == "") if isinstance(dtype, T.StringType) else F.lit(False)).cast("long")).alias(f"blank_{position}"),
+        count_matching_rows(value.isNull()).alias(f"null_{position}"),
+        count_matching_rows(invalid_number_expression(name)).alias(f"invalid_{position}"),
+        count_matching_rows((F.trim(value) == "") if isinstance(dtype, T.StringType) else F.lit(False)).alias(f"blank_{position}"),
     ])
 quality = source_df.agg(*quality_expressions).first().asDict()
 column_inventory = [

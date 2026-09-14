@@ -6,6 +6,7 @@ Requires duckdb and sqlglot in the local test environment, not in Databricks.
 import ast
 from decimal import Decimal
 from pathlib import Path
+import re
 import unittest
 
 import duckdb
@@ -18,6 +19,81 @@ HELPERS = ast.Module(body=[node for node in TREE.body if isinstance(node, ast.Fu
                           and node.name in {"ident", "literal", "build_metric_query"}], type_ignores=[])
 exec(compile(HELPERS, str(SOURCE_PATH), "exec"), NAMESPACE)
 query_builder = NAMESPACE["build_metric_query"]
+
+
+class SqlCountFunctions:
+    """SQL equivalent of the three calls in the count helper, not a Spark runtime."""
+    @staticmethod
+    def lit(value):
+        return str(value)
+
+    @staticmethod
+    def when(condition, value):
+        return f"CASE WHEN {condition} THEN {value} END"
+
+    @staticmethod
+    def count(value):
+        return f"COUNT({value})"
+
+
+class ColumnQualityTests(unittest.TestCase):
+    def setUp(self):
+        self.db = duckdb.connect()
+        helper = ast.Module(body=[node for node in TREE.body if isinstance(node, ast.FunctionDef)
+                                  and node.name == "count_matching_rows"], type_ignores=[])
+        namespace = {"F": SqlCountFunctions}
+        exec(compile(helper, str(SOURCE_PATH), "exec"), namespace)
+        self.count_matches = namespace["count_matching_rows"]
+
+    def tearDown(self):
+        self.db.close()
+
+    def profile(self, values, dtype, predicates):
+        self.db.execute(f"CREATE TABLE quality_fixture (value {dtype})")
+        if values:
+            self.db.executemany("INSERT INTO quality_fixture VALUES (?)", [(v,) for v in values])
+        expressions = ", ".join(self.count_matches(p) for p in predicates)
+        query = sqlglot.transpile(f"SELECT {expressions} FROM quality_fixture",
+                                 read="databricks", write="duckdb")[0]
+        # Use int(), as the notebook does, to catch the original NoneType failure.
+        return tuple(int(n) for n in self.db.execute(query).fetchone())
+
+    def test_all_null_string_counts_nulls_without_int_none(self):
+        self.assertEqual(self.profile([None, None], "VARCHAR",
+                                      ["value IS NULL", "TRIM(value) = ''", "FALSE"]), (2, 0, 0))
+        original = self.db.execute("SELECT SUM(CAST(TRIM(value) = '' AS BIGINT)) FROM quality_fixture").fetchone()[0]
+        self.assertIsNone(original)  # The old expression reproduces the reported failure.
+
+    def test_null_blank_and_populated_strings_are_separate(self):
+        self.assertEqual(self.profile([None, "", "   ", "A", " A "], "VARCHAR",
+                                      ["value IS NULL", "TRIM(value) = ''", "FALSE"]), (1, 2, 0))
+
+    def test_all_null_float_does_not_make_invalid_count_null(self):
+        self.assertEqual(self.profile([None, None], "DOUBLE",
+                                      ["value IS NULL", "FALSE", "isnan(value) OR abs(value) = CAST('Infinity' AS DOUBLE)"]),
+                         (2, 0, 0))
+
+    def test_non_finite_numbers_are_counted_separately_from_nulls(self):
+        self.assertEqual(self.profile([None, 0.0, -1.0, float("nan"), float("inf"), -float("inf")], "DOUBLE",
+                                      ["value IS NULL", "FALSE", "isnan(value) OR abs(value) = CAST('Infinity' AS DOUBLE)"]),
+                         (1, 0, 3))
+
+    def test_zero_and_negative_values_are_not_missing(self):
+        self.assertEqual(self.profile([None, 0, -2, 5], "BIGINT",
+                                      ["value IS NULL", "FALSE", "FALSE"]), (1, 0, 0))
+
+    def test_no_rows_has_zero_counts_without_removing_source_guard(self):
+        self.assertEqual(self.profile([], "VARCHAR",
+                                      ["value IS NULL", "TRIM(value) = ''", "FALSE"]), (0, 0, 0))
+        self.assertIn("if SOURCE_ROWS == 0:", SOURCE_PATH.read_text())
+
+    def test_all_three_quality_counts_use_the_helper(self):
+        loop = next(node for node in TREE.body if isinstance(node, ast.For)
+                    and ast.unparse(node.target) == "(position, (name, dtype))")
+        calls = [node for node in ast.walk(loop) if isinstance(node, ast.Call)]
+        self.assertEqual(sum(isinstance(n.func, ast.Name) and n.func.id == "count_matching_rows"
+                             for n in calls), 3)
+        self.assertFalse(any(isinstance(n.func, ast.Attribute) and n.func.attr == "sum" for n in calls))
 
 
 class GrainReviewTests(unittest.TestCase):
@@ -182,6 +258,12 @@ class GrainReviewTests(unittest.TestCase):
         self.assertEqual(len(cells), 8)
         for index, cell in enumerate(cells, 1):
             compile(cell, f"cell_{index}", "exec")
+
+    def test_copy_guide_matches_all_eight_source_cells(self):
+        source_cells = SOURCE_PATH.read_text().split("# COMMAND ----------")
+        copied_cells = re.findall(r"```python\n(.*?)\n```", SOURCE_PATH.with_name("COPY_CELLS.md").read_text(), re.S)
+        self.assertEqual(len(copied_cells), 8)
+        self.assertEqual([c.strip() for c in source_cells], [c.strip() for c in copied_cells])
 
     def test_no_company_connections_or_source_writes(self):
         source = SOURCE_PATH.read_text()

@@ -13,6 +13,12 @@ This replaces the earlier unconditional `MAX()` comparisons and the requirement 
 
 You can also import [CSM_CSAL_GRAIN_REVIEW.py](CSM_CSAL_GRAIN_REVIEW.py) as a Databricks source notebook. That file and the eight blocks in the copy guide are identical.
 
+### If Cell 2 failed with `int() ... not 'NoneType'`
+
+Replace the complete Cell 2 from [COPY_CELLS.md](COPY_CELLS.md#cell-2-record-every-column-and-check-visible-constraints), then run that cell again. If it succeeds, run Cells 3–8 in order. Keep the successful Cell 1 session; do not use Run all just to apply this fix. If the session has restarted, set `SOURCE_VERSION` to the version recorded by the earlier Cell 1 before rerunning from the start.
+
+The previous blank-count expression used `SUM` over a nullable condition. For an entirely null string column, it returned NULL rather than a count; converting that result to an integer failed. The invalid-number count could fail similarly on an entirely null floating-point column. Cell 2 now counts true matches with `COUNT(CASE WHEN ... THEN 1 END)`, which returns zero when there are no matches. Actual missing values remain counted in `null_rows`; no source values or business totals are filled with zero. This fixes the notebook's count calculation, not a production-data issue. [Apache Spark: NULL semantics](https://spark.apache.org/docs/4.0.1/sql-ref-null-semantics.html)
+
 ## What each cell provides
 
 | Cell | Purpose | What to capture |
@@ -138,7 +144,9 @@ Keep correct, incorrect, unresolved, refused and failed-execution outcomes in th
 
 ## Validation of this code
 
-Eight cells pass Python syntax checks. The SQL helper passed 25 synthetic tests covering conflicts, nulls, missing keys, independent entities with equal amounts, precision, signed values, NaN/infinity, overflow, empty inputs and added-key sensitivity. Exact generated SQL is parsed as Databricks SQL and translated for local execution with DuckDB. This checks logic without using corporate data; it is not a Databricks runtime or production-data validation. The PySpark profiling cells still require execution in your workspace.
+The test suite passes 33 automated checks, including syntax for all eight cells and exact agreement between the source notebook and copy guide. Synthetic cases cover conflicts, nulls, missing keys, independent entities with equal amounts, precision, signed values, NaN/infinity, overflow, empty inputs and added-key sensitivity. Regression cases reproduce the earlier null-count failure and check all-null strings, all-null floating-point values, blank strings and invalid numbers.
+
+The metric SQL is parsed as Databricks SQL and translated for local execution with DuckDB. The row-count helper is tested through its SQL-equivalent `COUNT(CASE WHEN ...)` expression; this is not a real PySpark execution. These checks use no corporate data and do not constitute Databricks runtime or production-data validation. The PySpark profiling cells still require execution in your workspace.
 
 The notebook never guarantees 100% business correctness. Its purpose is to make assumptions, observations and unresolved evidence explicit so the eventual conclusion can be defended.
 
