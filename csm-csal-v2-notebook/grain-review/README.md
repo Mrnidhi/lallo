@@ -2,6 +2,27 @@
 
 This replaces the earlier unconditional `MAX()` comparisons and the requirement to collect ten failures. It tests proposed groupings and records what the data supports. No preferred total, reduction percentage or number of agent failures is configured.
 
+## Read-only ten-case SQL evidence pack
+
+This evidence pack creates no table or view. It does not use `madabra` as an owner or target. Any later, separately approved V3 build must write personal objects only under `usr.jayarsr` after the signed-in identity and target schema are confirmed.
+
+Use the copy-ready [TEN_EVIDENCE_COPY_CELLS.md](TEN_EVIDENCE_COPY_CELLS.md) after the broad grain review. It contains ten numbered, self-contained Databricks SQL cells. [TEN_EVIDENCE_SQL_PACK.sql](TEN_EVIDENCE_SQL_PACK.sql) is the compact all-cases source. Both cover the fixed E01-E10 monthly and booking metrics while keeping the raw Gold sum, the count-once Gold calculation, the retained producer-code replay, the guarded intermediate calculation and the optional independent raw-source reference separate. The replay is not described as the deployed producer until its code revision and inputs are aligned.
+
+The local review record is in [TEN_EVIDENCE_VALIDATION.md](TEN_EVIDENCE_VALIDATION.md). It documents what was checked, what passed and what still requires live Databricks evidence.
+
+Run the compact SQL pack in this order:
+
+1. Set `report_month`, `gold_version`, `upstream_version`, and `evidence_id`. Use `ALL` for the audit table or one ID such as `E01` for a report screenshot. Leave the agent answer and raw reference blank for the all-ten diagnostic. Keep every 0/1 confirmation control at `0` until its named evidence is independently established.
+2. Run Cells 1 and 2 and capture the exact history rows for both selected versions. A recent version number is not evidence that the two tables came from the same producer run.
+3. Run Cells 3 and 4. Stop if either selected month is empty. Record both row counts, the selected Gold month and the upstream run-date range.
+4. Run Cell 5 with `evidence_id = ALL`. A numeric eligible subtotal is never a complete result when its blocked-group count is nonzero. The retained producer-code replay is descriptive and is not automatically the correct business total.
+5. Run Cell 5 once per E01-E10 for report screenshots. Pair each result with a fresh production-agent answer, its executed SQL or tool trace, and an independently rebuilt raw-source reference on the same reporting scope. Do not call the agent wrong from this SQL alone.
+6. Run Cell 6 for any case with blocked groups. It returns aggregate blocker counts without exposing customer records.
+
+Use the copy guide differently. Its ten cells are already narrowed to E01 through E10 and do not require `evidence_id`. First run all ten with blank numeric evidence inputs and every confirmation control at `0`. After the separate raw rebuild and fresh agent capture, rerun one cell at a time with only that case's two numbers. Change a control to `1` only when its named evidence exists. The copy guide is a diagnostic worksheet; it does not contain or invent the currently unverified raw-source rebuild.
+
+The pack is intentionally read-only: it contains no `CREATE`, `INSERT`, `UPDATE`, `DELETE`, `MERGE`, `DROP`, `ALTER` or configuration statement. It also includes month in the guarded intermediate calculation even though the retained producer's booking/status grouping omits it; cross-month groups are reported rather than silently merged. Named parameter markers require a current Databricks SQL surface. If an older runtime rejects a parameter in `VERSION AS OF`, replace that marker with the already recorded integer version in a private office copy. Never replace it with an unpinned current-table read.
+
 ## Start at the office
 
 1. Open [COPY_CELLS.md](COPY_CELLS.md). It contains the complete code in ten numbered Python cells. If Cells 1–9 have completed, append and run only [Cell 10](COPY_CELLS.md#cell-10-check-the-saved-monthly-and-mqc-rules); the first nine are unchanged. If you stopped after Cell 8, run Cell 9 before Cell 10.
