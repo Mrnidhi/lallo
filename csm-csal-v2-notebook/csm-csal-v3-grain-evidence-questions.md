@@ -1,5 +1,7 @@
 # CSM/CSAL V3 evidence topics
 
+For the ten varied cases discussed in the latest report, use [the current screenshot question list](reports/csm-csal-v3-ten-evidence-questions.md). The list below is the older monthly and booking metric set and uses different case meanings.
+
 Use [the current guide](grain-review/README.md) and [copy-ready notebook](grain-review/COPY_CELLS.md) for the analysis. The old prompts dictated a grain and formula before establishing their validity; they are superseded for the neutral production comparison.
 
 Use these questions as fixed topics, not a requirement to find ten failures. Each fresh production main-agent chat uses one question. Retain every outcome. If the selected period changes, change it consistently in all questions and SQL before the run.

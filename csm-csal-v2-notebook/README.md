@@ -2,6 +2,8 @@
 
 ## Current V3 grain review
 
+For new production-agent screenshots, use [the ten varied evidence questions](reports/csm-csal-v3-ten-evidence-questions.md). This file matches the ten-case report and includes capture instructions. Its E01-E10 meanings differ from the older monthly and booking metric question set.
+
 Use [the corrected eight-cell grain-review notebook](grain-review/COPY_CELLS.md) for new V3 analysis and [the interpretation guide](grain-review/README.md) for reporting. It supersedes the unconditional MAX-based evidence queries and the requirement to collect ten failures. V2 results below remain historical.
 
 Status: C01-C07 controlled personal POC complete on 10 September 2026.
