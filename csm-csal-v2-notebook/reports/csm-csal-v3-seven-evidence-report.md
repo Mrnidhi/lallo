@@ -12,6 +12,8 @@ The evidence comes from captured runs. The values are assessed within each run a
 
 All production-agent, SQL-code and SQL-result screenshots must be captured and inserted inside the Windows VM. This Markdown keeps placeholders only. It does not contain corporate screenshots or row-level data.
 
+Use the [seven-evidence screenshot guide](csm-csal-v3-seven-evidence-screenshot-guide.md) to capture, name, verify and insert every image. The guide also lists screenshots from older numbering schemes that must not be reused.
+
 ## Assessment method
 
 For each case, I compared the production-agent answer with the relevant source or producer result. I then compared it with the value counted once at the tested business grain. Where row repetition was relevant, I also calculated the result across the repeated Gold rows.
