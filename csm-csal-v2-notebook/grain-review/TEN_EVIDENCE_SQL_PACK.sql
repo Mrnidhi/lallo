@@ -20,6 +20,10 @@
 --   agent_unsafe_aggregation_confirmed INTEGER 0 until the trace shows summation of repeated values; otherwise 1
 --
 -- Do not substitute CURRENT data for either version. Record both history rows first.
+-- Bind every parameter before executing these cells. Missing values raise
+-- UNBOUND_SQL_PARAMETER even inside TRY_CAST. See the notebook setup cell in
+-- TEN_EVIDENCE_COPY_CELLS.md. For spark.sql(), pass the complete args mapping.
+-- Initial diagnostic: confirmation controls are 0 and optional evidence inputs blank.
 
 -- COMMAND ----------
 -- DBTITLE 1,1. Gold history: capture the selected version row

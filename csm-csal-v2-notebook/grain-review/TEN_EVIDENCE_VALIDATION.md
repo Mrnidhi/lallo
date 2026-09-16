@@ -42,6 +42,14 @@ The package creates no table, view or function. It makes no change under `madabr
 
 ## Live checks still required
 
+### Parameter setup correction
+
+The reported `UNBOUND_SQL_PARAMETER` error exposed a missing execution setup step. Local SQL parsing did not test notebook widget binding. The copy guide now includes a missing-only widget setup cell, SQL warehouse UI instructions and an explicit `spark.sql(..., args=...)` route.
+
+Four focused local tests pass for complete marker coverage, preserving existing inputs during repeated setup, refreshing the Python argument mapping and rejecting missing or invalid snapshot selections. These tests use a widget stub and do not claim a live Databricks execution. The evidence SQL calculations are unchanged.
+
+### Remaining evidence
+
 The following are evidence gates, not local code defects:
 
 1. Confirm that the selected Gold and upstream Delta versions are retained and belong to the same producer run.

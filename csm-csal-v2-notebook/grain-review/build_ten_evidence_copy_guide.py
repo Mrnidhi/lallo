@@ -54,7 +54,7 @@ This worksheet creates nothing under any user. `madabra` is not the owner. Any l
 
 ## Parameters to create in Databricks
 
-Create these named parameters once in the SQL editor or notebook UI:
+Create these named parameters before running a query that uses them. `TRY_CAST` checks a supplied value but cannot supply a missing parameter. In a notebook with Python available, use the setup cell below. In SQL Editor or a notebook attached to a SQL warehouse, add the parameters through the UI.
 
 | Parameter | Type | Value to enter |
 |---|---|---|
@@ -70,6 +70,63 @@ Create these named parameters once in the SQL editor or notebook UI:
 | `agent_trace_executed_confirmed` | Integer | `0` until the executed agent SQL or tool trace is captured, otherwise `1` |
 | `agent_scope_alignment_confirmed` | Integer | `0` until source, month, filters and version align, otherwise `1` |
 | `agent_unsafe_aggregation_confirmed` | Integer | `0` until the trace shows that repeated values were summed, otherwise `1` |
+
+The compact SQL pack also requires `evidence_id`, a string set to `ALL` for the first diagnostic or `E01` through `E10` for one case. The ten copy cells below already select their own case.
+
+### Notebook setup cell
+
+Add a Python cell above the evidence SQL and run this once. It creates only missing notebook input widgets. Existing values are preserved. New month and version inputs are deliberately blank because those values must come from your selected reporting scope and captured history rows.
+
+```python
+evidence_parameter_defaults = {
+    "report_month": "",
+    "gold_version": "",
+    "upstream_version": "",
+    "evidence_id": "ALL",
+    "agent_answer_value": "",
+    "independent_raw_reference_total": "",
+    "identity_rule_confirmed": "0",
+    "metric_rule_confirmed": "0",
+    "lineage_alignment_confirmed": "0",
+    "raw_source_validation_confirmed": "0",
+    "agent_trace_executed_confirmed": "0",
+    "agent_scope_alignment_confirmed": "0",
+    "agent_unsafe_aggregation_confirmed": "0",
+}
+
+existing_parameters = dbutils.widgets.getAll()
+for name, default in evidence_parameter_defaults.items():
+    if name not in existing_parameters:
+        dbutils.widgets.text(name, default)
+
+print("Parameter inputs are available. Check the month and both pinned versions before running SQL.")
+```
+
+Keep every confirmation at `0` for the initial diagnostic. The setup preserves existing entries, including any earlier `1`, so review those values before a new diagnostic. Enter the month and versions in their widgets if they were missing. Run the evidence query in a SQL cell, or use `%sql` as the first line in a Python-default notebook. Rerun only the failed evidence cell after fixing its missing input.
+
+For a notebook attached to a SQL warehouse, use **Edit > Add parameter**. For the reported error, add `raw_source_validation_confirmed` and give it the value `0`. In SQL Editor, use the query's parameter controls. Repeat this for any other missing parameter from the list. SQL notebook widget markers require Databricks Runtime 15.2 or later. Widgets hold strings, and the evidence SQL casts the confirmation values to integers.
+
+### When calling the query from Python
+
+If you use `spark.sql(...)`, provide the parameter mapping explicitly. Defining a Python variable or a widget does not replace the `args` mapping for this call. After the setup cell, run this in Python immediately before your existing query call:
+
+```python
+evidence_args = {
+    name: dbutils.widgets.get(name)
+    for name in evidence_parameter_defaults
+}
+if not evidence_args["report_month"].strip():
+    raise ValueError("Enter the selected report_month in its widget.")
+for name in ("gold_version", "upstream_version"):
+    value = evidence_args[name].strip()
+    if not value.isascii() or not value.isdecimal():
+        raise ValueError(f"Enter the recorded non-negative integer {name} in its widget.")
+    evidence_args[name] = int(value)
+```
+
+Change your existing call from `spark.sql(your_query_variable)` to `spark.sql(your_query_variable, args=evidence_args)`, using the actual variable that already contains the SQL. Rebuild `evidence_args` after changing any widget. These Python snippets do not run the evidence query or change a database table.
+
+References: [Databricks notebook widgets](https://docs.databricks.com/aws/en/notebooks/widgets) and [named parameter binding](https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-parameter-marker).
 
 Use only `0` or `1` for every control. A missing check stays `0`. Do not use the latest version automatically. First run the two history statements below, choose explicit versions, and capture both selected rows.
 

@@ -10,6 +10,8 @@ Use the copy-ready [TEN_EVIDENCE_COPY_CELLS.md](TEN_EVIDENCE_COPY_CELLS.md) afte
 
 The local review record is in [TEN_EVIDENCE_VALIDATION.md](TEN_EVIDENCE_VALIDATION.md). It documents what was checked, what passed and what still requires live Databricks evidence.
 
+If you see `UNBOUND_SQL_PARAMETER`, run the [notebook parameter setup](TEN_EVIDENCE_COPY_CELLS.md#notebook-setup-cell) before rerunning the failed query. It creates missing widgets without replacing existing values. On a SQL warehouse, create inputs through the UI. For a Python `spark.sql(...)` call, supply the explicit `args` mapping shown in the guide. Set unverified confirmation inputs such as `raw_source_validation_confirmed` to `0`.
+
 Run the compact SQL pack in this order:
 
 1. Set `report_month`, `gold_version`, `upstream_version`, and `evidence_id`. Use `ALL` for the audit table or one ID such as `E01` for a report screenshot. Leave the agent answer and raw reference blank for the all-ten diagnostic. Keep every 0/1 confirmation control at `0` until its named evidence is independently established.
