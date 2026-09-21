@@ -411,6 +411,63 @@ with_metrics AS (
       AND calendar_days_before_tcr = 0
     ) AS same_day_order_unknown
   FROM with_intervals
+),
+dashboard_metrics AS (
+  SELECT
+    *,
+    COUNT(*) OVER () AS total_source_case_count,
+    SUM(CASE WHEN booking_number IS NOT NULL THEN 1 ELSE 0 END) OVER ()
+      AS total_booking_case_count,
+    SUM(CASE WHEN booking_number IS NULL THEN 1 ELSE 0 END) OVER ()
+      AS missing_booking_case_count,
+    SUM(CASE WHEN has_booking_number_overlap THEN 1 ELSE 0 END) OVER ()
+      AS booking_number_overlap_count,
+    SUM(CASE WHEN has_controlled_match THEN 1 ELSE 0 END) OVER ()
+      AS controlled_key_match_count,
+    SUM(CASE WHEN match_tier = 1 THEN 1 ELSE 0 END) OVER ()
+      AS exact_key_match_count,
+    SUM(CASE WHEN match_tier = 2 THEN 1 ELSE 0 END) OVER ()
+      AS unique_booking_fallback_count,
+    SUM(CASE WHEN match_tier IS NULL THEN 1 ELSE 0 END) OVER ()
+      AS unresolved_match_count,
+    SUM(CASE WHEN is_valid_timing_record THEN 1 ELSE 0 END) OVER ()
+      AS valid_calendar_timing_count,
+    SUM(CASE WHEN is_valid_hour_timing_record THEN 1 ELSE 0 END) OVER ()
+      AS valid_hour_timing_count,
+    SUM(CASE WHEN is_after_cutoff IS NOT NULL THEN 1 ELSE 0 END) OVER ()
+      AS known_cutoff_order_count,
+    SUM(CASE WHEN is_after_cutoff THEN 1 ELSE 0 END) OVER ()
+      AS observed_after_cutoff_count,
+    SUM(CASE WHEN same_day_order_unknown THEN 1 ELSE 0 END) OVER ()
+      AS same_day_order_unknown_count,
+    ROUND(
+      100.0
+      * SUM(CASE WHEN has_controlled_match THEN 1 ELSE 0 END) OVER ()
+      / NULLIF(
+          SUM(CASE WHEN booking_number IS NOT NULL THEN 1 ELSE 0 END) OVER (),
+          0
+        ),
+      1
+    ) AS controlled_key_match_rate_pct,
+    ROUND(
+      100.0
+      * SUM(CASE WHEN is_valid_timing_record THEN 1 ELSE 0 END) OVER ()
+      / NULLIF(
+          SUM(CASE WHEN booking_number IS NOT NULL THEN 1 ELSE 0 END) OVER (),
+          0
+        ),
+      1
+    ) AS valid_timing_rate_pct,
+    ROUND(
+      100.0
+      * SUM(CASE WHEN is_after_cutoff THEN 1 ELSE 0 END) OVER ()
+      / NULLIF(
+          SUM(CASE WHEN is_after_cutoff IS NOT NULL THEN 1 ELSE 0 END) OVER (),
+          0
+        ),
+      1
+    ) AS observed_after_cutoff_rate_pct
+  FROM with_metrics
 )
 SELECT
   booking_tcr_key,
@@ -474,5 +531,21 @@ SELECT
   is_after_cutoff,
   cutoff_precision_flag,
   TRUE AS creation_timestamp_is_proxy,
-  'csal_shipment.rec_cre_dt_utc' AS creation_timestamp_source
-FROM with_metrics;
+  'csal_shipment.rec_cre_dt_utc' AS creation_timestamp_source,
+  total_source_case_count,
+  total_booking_case_count,
+  missing_booking_case_count,
+  booking_number_overlap_count,
+  controlled_key_match_count,
+  exact_key_match_count,
+  unique_booking_fallback_count,
+  unresolved_match_count,
+  valid_calendar_timing_count,
+  valid_hour_timing_count,
+  known_cutoff_order_count,
+  observed_after_cutoff_count,
+  same_day_order_unknown_count,
+  controlled_key_match_rate_pct,
+  valid_timing_rate_pct,
+  observed_after_cutoff_rate_pct
+FROM dashboard_metrics;
