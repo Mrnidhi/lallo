@@ -105,8 +105,8 @@ SELECT COUNT(*) AS pairs, SUM(side_rows) AS sides,
 FROM pair
 """).first()
 
-pairs, sides = int(result["pairs"] or 0), int(result["sides"] or 0)
-print(f"ALL SERVICES: {pairs:,} balanced pairs / {sides:,} plan sides")
+pair_total, side_total = int(result["pairs"] or 0), int(result["sides"] or 0)
+print(f"ALL SERVICES: {pair_total:,} balanced pairs / {side_total:,} plan sides")
 print("Gate                            Passing sides     Pairs with both sides")
 for label, key in (
     ("Exact audit", "audit"), ("Current association", "association"),
@@ -119,7 +119,7 @@ for label, key in (
 ):
     side_n = int(result[key + "_sides"] or 0)
     pair_n = int(result[key + "_pairs"] or 0)
-    print(f"{label:<32} {side_n:>5,}/{sides:<5,}       {pair_n:>5,}/{pairs:<5,}")
+    print(f"{label:<32} {side_n:>5,}/{side_total:<5,}       {pair_n:>5,}/{pair_total:<5,}")
 print("\nFailure clues; pair counts overlap:")
 for label, key in (
     ("No association", "no_association"),
