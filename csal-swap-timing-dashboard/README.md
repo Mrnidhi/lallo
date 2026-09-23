@@ -1,28 +1,29 @@
-# CSAL Swap Recommendation Timing Dashboard
+# CSAL timing and allocation dashboard
 
-This folder contains the current preliminary analysis package for deciding when a swap recommendation could be shown before the recorded TCR cutoff.
+Start with [the complete dashboard build guide](docs/CSAL_DASHBOARD_COMPLETE_BUILD.md).
 
-## Contents
+That single Markdown file contains:
 
-- `sql/csal_tcr_tiered_match_v2.sql` — Databricks SQL that creates the case-level matching and timing dataset.
-- `docs/CSAL_EDA_STORY.md` — business question, verified findings, dashboard structure, limitations, and next analysis.
-- `docs/CSAL_DASHBOARD_PRESENTATION_SCRIPT.md` — full presentation script, 30-second version, KPI definitions, and likely questions.
-- `erd/csal-booking-cutoff-logical-erd-standard.drawio` — editable logical ER diagram.
-- `erd/csal-booking-cutoff-logical-erd-standard.{png,pdf,svg}` — presentation-ready ERD exports.
-- `erd/render-csal-logical-erd-standard.py` — local source used to regenerate the ERD exports.
+- Where to paste two independent, read-only Databricks SQL queries.
+- All-service shipment timing relative to the latest available TCR cutoff.
+- Daily and cumulative line-chart settings, including the correct day-zero boundary.
+- Recorded allocation revisions, shown by calendar date or weekday.
+- Service filters, coverage tables, reconciliation checks, and editable date settings.
+- The evidence still needed to establish actual swap timing and a recommendation window.
 
-## Current analytical scope
+The guide uses `datasources.csal.csal_booking_detail`, `csal_shipment`,
+`csal_voy_stop_dtl`, and `csal_change_log`. It does not depend on CRMI tables or
+temporary notebook views. Access corporate systems through the Windows VM.
 
-The SQL combines:
+## Interpretation
 
-- `dev.crmi_gold.csal_teu_performance_nrt` for the latest NRT booking case and recorded TCR cutoff.
-- `datasources.csal.csal_shipment` for the shipment record-creation timestamp and candidate TCR fields.
+Shipment-record creation has not been confirmed as original customer booking
+time. Current routes and cutoffs are not historical snapshots. Recorded
+allocation revisions are not confirmed swaps. The evidence does not yet
+establish a recommendation day.
 
-It retains unmatched cases, distinguishes exact and controlled fallback matches, and calculates calendar days before the recorded cutoff. The current 14-day first-alert and 7-day escalation points are preliminary hypotheses based on historical timing concentration.
-
-## Interpretation limits
-
-- `rec_cre_dt_utc` is treated as a shipment record-creation proxy and still needs business confirmation as the correct booking event.
-- Observed TCR cutoffs are date-only, so same-day ordering and exact hour-level timing are unavailable.
-- The current data does not contain recommendation, acceptance, completed-swap, or business-outcome labels.
-- Aggregate results in the documents reflect the analyzed snapshot and should be refreshed after rerunning the SQL on newer data.
+Other SQL files, notebooks, diagrams and presentation notes in this folder are
+earlier investigation material. They may use different populations, matching
+rules, or provisional interpretations. Follow the complete build guide for the
+current dashboard; earlier suggested alert dates are hypotheses, not validated
+business rules.
