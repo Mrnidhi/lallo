@@ -16,15 +16,25 @@ WITH matched_side AS (
            AS stop_present,
          MAX(IF(NULLIF(plan_week, '') IS NOT NULL, 1, 0))
            AS plan_present,
-         MAX(IF(association_sail_week = stop_sail_week, 1, 0))
+         MIN(IF(association_sail_week IS NOT NULL
+                 AND stop_sail_week IS NOT NULL
+                 AND association_sail_week = stop_sail_week, 1, 0))
            AS association_equals_stop,
-         MAX(IF(booking_sail_week = stop_sail_week, 1, 0))
+         MIN(IF(booking_sail_week IS NOT NULL
+                 AND stop_sail_week IS NOT NULL
+                 AND booking_sail_week = stop_sail_week, 1, 0))
            AS booking_equals_stop,
-         MAX(IF(plan_week = stop_sail_week, 1, 0))
+         MIN(IF(plan_week IS NOT NULL
+                 AND stop_sail_week IS NOT NULL
+                 AND plan_week = stop_sail_week, 1, 0))
            AS plan_equals_stop,
-         MAX(IF(plan_week = association_sail_week, 1, 0))
+         MIN(IF(plan_week IS NOT NULL
+                 AND association_sail_week IS NOT NULL
+                 AND plan_week = association_sail_week, 1, 0))
            AS plan_equals_association,
-         MAX(IF(plan_week = booking_sail_week, 1, 0))
+         MIN(IF(plan_week IS NOT NULL
+                 AND booking_sail_week IS NOT NULL
+                 AND plan_week = booking_sail_week, 1, 0))
            AS plan_equals_booking
   FROM {route_rows}
   WHERE stop_id IS NOT NULL

@@ -72,10 +72,16 @@ if not day_rows or window_n == 0:
 
 print("CSAL shipment-record timing and allocation revisions | all services")
 print(
-    f"Timing coverage: {direct_n:,} matured direct-route matches from "
-    f"{source_n:,} current booking-detail shipments ({100 * direct_n / source_n:.1f}%); "
+    f"Eligible timing coverage: {direct_n:,} matured route-and-cutoff records from "
+    f"{source_n:,} current booking-detail shipments in the selected source period "
+    f"({100 * direct_n / source_n:.1f}%); "
     f"{window_n:,} fall within the common 28-day-before/14-day-after window."
     if source_n else "Timing coverage: no source records."
+)
+print(
+    "The current route check uses corporate voyage and loading port. "
+    "Booking and stop sail-week alignment remains unresolved and is not "
+    "an eligibility condition for this timing curve."
 )
 print(
     f"Within that window, {before_n:,} records were created before the "
@@ -91,7 +97,7 @@ plt.rcParams.update({
 })
 
 fig, axes = plt.subplots(2, 2, figsize=(16, 10), constrained_layout=True)
-fig.suptitle("CSAL record creation relative to TCR cutoff | eligible direct routes", color=NAVY,
+fig.suptitle("CSAL record creation relative to TCR cutoff | eligible timing records", color=NAVY,
              fontsize=17, fontweight="bold", x=0.02, ha="left")
 
 # A daily count curve shows the shape, including observations after cutoff.
@@ -136,7 +142,7 @@ ax.barh(labels, values, color=NAVY, height=0.62)
 for i, (v, n, d) in enumerate(zip(values, numerators, denoms)):
     ax.text(v + 1, i, f"{v:.0f}%  ({n:,}/{d:,})", va="center", fontsize=8,
             color=NAVY)
-ax.set(title="Eligible direct routes: 10 largest source services",
+ax.set(title="Eligible timing coverage: 10 largest source services",
        xlabel="Share of current booking-detail shipments (%)", xlim=(0, 125))
 ax.grid(axis="x", color=PALE, linewidth=0.7)
 ax.set_axisbelow(True)
@@ -147,9 +153,10 @@ values = [float(timing_by_service[s]["after_pct_of_comparable"] or 0)
           if s in timing_by_service else 0 for s in labels]
 ns = [int(timing_by_service[s]["records_in_28_before_14_after_window"])
       if s in timing_by_service else 0 for s in labels]
-ax.barh(labels, values, color=RED, height=0.62)
+ax.barh(labels, values, color=[RED if n else PALE for n in ns], height=0.62)
 for i, (v, n) in enumerate(zip(values, ns)):
-    ax.text(v + 0.7, i, f"{v:.1f}%  (n={n:,})", va="center", fontsize=8,
+    label = f"{v:.1f}%  (n={n:,})" if n else "N/A (no comparable records)"
+    ax.text(v + 0.7, i, label, va="center", fontsize=8,
             color=NAVY)
 ax.set(title="After cutoff: same 10 largest source services",
        xlabel="Share of comparable window records (%)",
@@ -188,9 +195,10 @@ usable_n = sum(int(r["candidate_pairs"]) for r in pair_rows
 unresolved_n = pair_n - usable_n
 print(
     f"Allocation screening: {pair_n:,} balanced two-plan revision candidates; "
-    f"{usable_n:,} have current-route cutoff and matching audit evidence. "
+    f"{usable_n:,} pass the current-route, week, cutoff and audit checks. "
     "They are not confirmed swaps."
 )
+print("Rerun the corrected allocation-candidate cell before presenting these screening counts.")
 
 candidate_days = spark.sql(f"""
 SELECT DATEDIFF(raw_update_date,
@@ -223,11 +231,11 @@ ax.grid(axis="y", color=PALE, linewidth=0.7)
 ax.set_axisbelow(True)
 
 ax = axes[0, 1]
-ax.barh(["Current-route and audit evidence", "Cutoff or audit unresolved"],
+ax.barh(["Route, week, cutoff and audit checks", "One or more checks unresolved"],
         [usable_n, unresolved_n], color=[NAVY, RED], height=0.45)
 for i, val in enumerate([usable_n, unresolved_n]):
     ax.text(val + 0.2, i, f"{val:,}", va="center", color=NAVY)
-ax.set(title="Balanced revision-pair evidence", xlabel="Candidate pairs",
+ax.set(title="Balanced revision-pair screening (provisional)", xlabel="Candidate pairs",
        xlim=(0, max(pair_n, 1) * 1.22))
 ax.grid(axis="x", color=PALE, linewidth=0.7)
 ax.set_axisbelow(True)
@@ -243,7 +251,7 @@ if candidate_days:
            ylabel="Candidate pairs")
     ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 else:
-    ax.text(0.5, 0.55, "No candidate pair has a usable cutoff",
+    ax.text(0.5, 0.55, "No pair passed route, cutoff, and audit checks",
             ha="center", va="center", color=NAVY, fontsize=12,
             transform=ax.transAxes)
     ax.text(0.5, 0.42, "A before/after swap curve cannot yet be calculated.",
@@ -265,7 +273,7 @@ if top:
     names = [item[0] for item in top]
     good = [item[1]["usable"] for item in top]
     other = [item[1]["unresolved"] for item in top]
-    ax.barh(names, good, color=NAVY, label="Route and audit evidence")
+    ax.barh(names, good, color=NAVY, label="Route, week, cutoff and audit checks")
     ax.barh(names, other, left=good, color=RED, label="Unresolved")
     ax.legend(frameon=False, loc="lower right", fontsize=8)
     ax.set(title="Candidate evidence by service", xlabel="Candidate pairs")
@@ -280,8 +288,9 @@ else:
 plt.show()
 
 print(
-    "Reading guide: these curves show when records entered CSAL, not when "
-    "customers originally booked or how much final TEU was known. The "
+    "Reading guide: these curves show the shipment-creation timestamp, not "
+    "confirmed original booking time or how much final TEU was known. The "
+    "timing cohort does not enforce sail-week alignment. The "
     "weekday chart uses the raw change-log date; its timezone is unconfirmed. "
     "Candidate timing uses current route/cutoff data and is provisional. "
     "A recommendation date cannot be justified until original booking times, "
