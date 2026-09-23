@@ -14,7 +14,9 @@ def show(title, sql):
     print("\n" + title)
     display(spark.sql(sql))
 
-# A revision is a finalized value change. A balanced pair is only a candidate:
+# These are rows currently marked finalized with a recorded value change.
+# The raw update timestamp is not necessarily the finalization time.
+# A balanced pair is only a candidate:
 # two opposite changes on one service, plan week, short voyage, and raw update time.
 changes = make_view("changes", f"""
 SELECT
@@ -27,9 +29,10 @@ SELECT
   UPPER(TRIM(agreement)) AS agreement,
   UPPER(TRIM(tcr)) AS tcr,
   updated_on AS raw_update_time,
-  TO_DATE(SUBSTR(updated_on, 1, 8), 'yyyyMMdd') AS raw_update_date,
-  CAST(reviewed_teu AS DECIMAL(18,3))
-    - CAST(last_reviewed_teu AS DECIMAL(18,3)) AS delta_teu
+  CAST(TRY_TO_TIMESTAMP(CAST(updated_on AS STRING),
+                        'yyyyMMddHHmmss.SSS') AS DATE) AS raw_update_date,
+  TRY_CAST(reviewed_teu AS DECIMAL(18,3))
+    - TRY_CAST(last_reviewed_teu AS DECIMAL(18,3)) AS delta_teu
 FROM datasources.csal.csal_change_log
 WHERE COALESCE(deleted, FALSE) = FALSE
   AND UPPER(TRIM(status)) = 'FINALIZED'
@@ -38,6 +41,8 @@ WHERE COALESCE(deleted, FALSE) = FALSE
   AND reviewed_teu IS NOT NULL
   AND updated_on RLIKE '^[0-9]{{14}}[.][0-9]{{3}}$'
   AND SUBSTR(updated_on, 1, 8) >= '{START_DAY}'
+  AND TRY_TO_TIMESTAMP(CAST(updated_on AS STRING),
+                       'yyyyMMddHHmmss.SSS') IS NOT NULL
   AND NULLIF(TRIM(service), '') IS NOT NULL
   AND NULLIF(TRIM(week_num), '') IS NOT NULL
   AND NULLIF(TRIM(vessel_voyage), '') IS NOT NULL
@@ -90,7 +95,14 @@ SELECT
     WHEN LOWER(a.type) = 'finalize'
      AND LOWER(REGEXP_REPLACE(a.change_field, '[^A-Za-z]', ''))
          = 'reviewedteu'
-     AND a.date_time = p.raw_update_time
+     AND COALESCE(
+           TRY_TO_TIMESTAMP(CAST(a.date_time AS STRING),
+                            'yyyyMMddHHmmss.SSS'),
+           TRY_TO_TIMESTAMP(CAST(a.date_time AS STRING),
+                            'yyyyMMddHHmmss'),
+           TRY_CAST(a.date_time AS TIMESTAMP)
+         ) = TRY_TO_TIMESTAMP(CAST(p.raw_update_time AS STRING),
+                              'yyyyMMddHHmmss.SSS')
      AND TRY_CAST(a.change_to AS DECIMAL(18,3))
        - TRY_CAST(a.change_from AS DECIMAL(18,3)) = p.delta_teu
     THEN a.uuid END) AS matching_finalization_audits
@@ -185,7 +197,8 @@ WITH ranked AS (
     is_load_allowed, is_omitted, is_tentative_schedule,
     is_vms, is_phase_out, private_call,
     tcr_cutoff_date AS cutoff_raw,
-    TO_DATE(SUBSTR(tcr_cutoff_date, 1, 10)) AS cutoff_utc_date,
+    TRY_CAST(SUBSTR(CAST(tcr_cutoff_date AS STRING), 1, 10)
+             AS DATE) AS cutoff_utc_date,
     DENSE_RANK() OVER (
       PARTITION BY COALESCE(NULLIF(UPPER(TRIM(msg_business_key)), ''),
                            CONCAT('ID:', CAST(id AS STRING)))
@@ -345,8 +358,10 @@ WITH source AS (
   SELECT UPPER(TRIM(service)) AS service,
          SUBSTR(updated_on, 1, 6) AS update_month,
          COUNT(*) AS finalized_rows,
-         SUM(CASE WHEN last_reviewed_teu IS NOT NULL
-                   AND reviewed_teu IS NOT NULL
+         SUM(CASE WHEN TRY_CAST(last_reviewed_teu AS DECIMAL(18,3))
+                         IS NOT NULL
+                   AND TRY_CAST(reviewed_teu AS DECIMAL(18,3))
+                         IS NOT NULL
                    AND NULLIF(TRIM(week_num), '') IS NOT NULL
                    AND NULLIF(TRIM(vessel_voyage), '') IS NOT NULL
                   THEN 1 ELSE 0 END) AS analyzable_rows
@@ -356,6 +371,8 @@ WITH source AS (
     AND UPPER(TRIM(acceptance_status)) = 'TCC ACCEPTED'
     AND updated_on RLIKE '^[0-9]{{14}}[.][0-9]{{3}}$'
     AND SUBSTR(updated_on, 1, 8) >= '{START_DAY}'
+    AND TRY_TO_TIMESTAMP(CAST(updated_on AS STRING),
+                         'yyyyMMddHHmmss.SSS') IS NOT NULL
     AND NULLIF(TRIM(service), '') IS NOT NULL
   GROUP BY UPPER(TRIM(service)), SUBSTR(updated_on, 1, 6)
 ), paired AS (
@@ -380,7 +397,7 @@ LEFT JOIN paired p
 ORDER BY s.service, s.update_month
 """)
 
-show("1. All-service finalized allocation revisions by weekday", f"""
+show("1. Recorded allocation revisions by raw update weekday", f"""
 SELECT service,
        DATE_FORMAT(raw_update_date, 'EEEE') AS raw_calendar_weekday,
        COUNT(*) AS value_change_rows,
@@ -398,8 +415,8 @@ ORDER BY service, raw_calendar_weekday
 show("1a. Revision timing around Monday three weeks before plan week", f"""
 WITH parsed AS (
   SELECT *,
-         TO_DATE(CONCAT(SUBSTR(plan_week, 1, 4), '-01-04'))
-           AS january_fourth,
+         TRY_CAST(CONCAT(SUBSTR(plan_week, 1, 4), '-01-04')
+                  AS DATE) AS january_fourth,
          CAST(SUBSTR(plan_week, 7, 2) AS INT) AS week_number
   FROM {changes}
   WHERE delta_teu <> 0
@@ -413,6 +430,7 @@ WITH parsed AS (
              7 * (week_number - 1)),
            21) AS planning_monday
   FROM parsed
+  WHERE january_fourth IS NOT NULL
 )
 SELECT service,
        CASE WHEN raw_update_date < planning_monday
@@ -460,7 +478,7 @@ GROUP BY service, raw_update_date,
 ORDER BY raw_update_date, service, direction
 """)
 
-show("4. Candidate finalizations by day relative to binding cutoff", f"""
+show("4. Candidate raw update dates relative to current cutoff", f"""
 WITH usable AS (
   SELECT *,
          LEAST(decrease_cutoff_utc_date, increase_cutoff_utc_date)
