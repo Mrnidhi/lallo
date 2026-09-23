@@ -13,6 +13,17 @@ September 23, 2026. This new notebook uses that definition. Customer names are
 used as the requested identity proxy, with case and whitespace normalization.
 Current routes and cutoffs still do not reconstruct historical schedule changes.
 
+## Individual customer booking and extra-space charts
+
+Use [the standalone customer activity cell](notebooks/csal-customer-bookings-and-extra-space.py)
+to show daily bookings around TCR cutoff alongside recorded increases to requested
+space by event date. It includes minimum, median and maximum added TEU, resulting
+requested totals, and exact event/booking tables. See [run instructions and definitions](docs/CUSTOMER_BOOKING_AND_EXTRA_SPACE.md).
+
+The request panel uses positive `requestedTeu` edits and is labelled accordingly;
+it does not prove customer-originated requests. Audit timezone and historical
+plan cutoffs remain unresolved, so those edits are not placed on a TCR-relative axis.
+
 ## Earlier notebook and dashboard work
 
 For notebook charts, copy [the single-cell notebook code](notebooks/csal-three-charts-cell.py) into one Databricks notebook cell and run it. It produces the daily cutoff curve, cumulative curve, and allocation revisions by weekday.
