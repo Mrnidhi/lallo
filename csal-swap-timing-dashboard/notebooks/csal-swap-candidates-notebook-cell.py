@@ -80,6 +80,7 @@ JOIN {changes} c
  AND g.plan_week = c.plan_week
  AND g.short_voyage = c.short_voyage
  AND g.raw_update_time = c.raw_update_time
+ AND c.delta_teu <> 0
 WHERE g.revision_rows = 2
   AND g.plans = 2
   AND g.increase_rows = 1
