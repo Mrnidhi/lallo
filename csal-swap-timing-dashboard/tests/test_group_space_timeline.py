@@ -3,10 +3,13 @@
 Only pure helpers are loaded; these tests do not access Spark or company data.
 """
 import ast
+from contextlib import redirect_stdout
 from datetime import datetime, timezone
+import io
 from pathlib import Path
 import re
 import unittest
+from unittest.mock import Mock
 from zoneinfo import ZoneInfo
 
 import numpy as np
@@ -332,6 +335,90 @@ class PlanCutoffBridgeSQL(unittest.TestCase):
         result = self.result()
         self.assertTrue(result.cutoff_us.isna().all())
         self.assertEqual(result.loc["P4", "cutoff_status"], "No available shipment association")
+
+
+class EmptyTableDisplayRegression(unittest.TestCase):
+    def setUp(self):
+        self.helpers = load_helpers()
+        self.display = Mock()
+        self.helpers["display"] = self.display
+
+    def test_empty_pandas_reports_message_and_columns_without_spark_inference(self):
+        table = pd.DataFrame(columns=["audit_id", "extra_teu"])
+        output = io.StringIO()
+        with redirect_stdout(output):
+            self.helpers["display_result_table"](table, "No request edits for this customer.")
+        self.display.assert_not_called()
+        self.assertIn("No request edits for this customer.", output.getvalue())
+        self.assertIn("audit_id", output.getvalue())
+        self.assertIn("extra_teu", output.getvalue())
+
+    def test_nonempty_pandas_is_forwarded_unchanged(self):
+        table = pd.DataFrame({"audit_id": ["A1"], "extra_teu": [3.0]})
+        self.helpers["display_result_table"](table)
+        self.display.assert_called_once()
+        self.assertIs(self.display.call_args.args[0], table)
+
+    def test_typed_spark_like_table_does_not_trigger_count_or_collect(self):
+        class TypedSparkTable:
+            def count(self):
+                raise AssertionError("Display guard must not run an extra Spark count.")
+
+            def collect(self):
+                raise AssertionError("Display guard must not collect a Spark table.")
+
+            @property
+            def empty(self):
+                raise AssertionError("A Spark table does not have pandas empty semantics.")
+
+        table = TypedSparkTable()
+        self.helpers["display_result_table"](table)
+        self.display.assert_called_once()
+        self.assertIs(self.display.call_args.args[0], table)
+
+    def test_empty_request_display_sequences_complete_without_empty_schema_error(self):
+        def spark_backed_display(table):
+            if isinstance(table, pd.DataFrame) and table.empty:
+                raise RuntimeError("[CANNOT_INFER_EMPTY_SCHEMA] Can not infer schema from empty dataset.")
+
+        self.display.side_effect = spark_backed_display
+        summary = pd.DataFrame({"customer_key": ["ALPHA"], "bookings": [30]})
+        daily = pd.DataFrame({"customer_key": ["ALPHA"], "day_from_cutoff": [-3], "bookings": [30]})
+        empty_events = pd.DataFrame(columns=["customer_key", "audit_id", "extra_teu"])
+        empty_bridge = pd.DataFrame(columns=["plan_id", "cutoff_us", "cutoff_status"])
+        other_customer_events = pd.DataFrame({"customer_key": ["BETA"], "audit_id": ["A1"], "extra_teu": [3]})
+        other_customer_bridge = pd.DataFrame({"plan_id": ["P1"], "cutoff_us": [1782864000000000],
+                                              "cutoff_status": ["Unique current linked cutoff"]})
+        for label, events, bridge, expected_native_displays in [
+            ("all requests empty", empty_events, empty_bridge, 4),
+            ("this customer has no requests", other_customer_events, other_customer_bridge, 6),
+        ]:
+            with self.subTest(label=label):
+                self.display.reset_mock()
+                customer_events = events[events.customer_key == "ALPHA"]
+                output = io.StringIO()
+                with redirect_stdout(output):
+                    for table in [summary, events, bridge, daily, summary, customer_events, daily]:
+                        self.helpers["display_result_table"](table)
+                self.assertEqual(self.display.call_count, expected_native_displays)
+                self.assertIn("No matching records.", output.getvalue())
+
+    def test_controller_and_nested_customer_view_route_displays_through_guard(self):
+        tree = ast.parse(SOURCE.read_text())
+        controller = next(node for node in tree.body if isinstance(node, ast.FunctionDef)
+                          and node.name == "run_group_space_timeline")
+        calls = [node for node in ast.walk(controller) if isinstance(node, ast.Call)
+                 and isinstance(node.func, ast.Name)]
+        self.assertFalse(any(node.func.id == "display" for node in calls),
+                         "The controller and nested customer view must use the empty-table guard.")
+        self.assertTrue(any(node.func.id == "display_result_table" for node in calls))
+        population = next(node for node in tree.body if isinstance(node, ast.FunctionDef)
+                          and node.name == "get_group_population")
+        self.assertTrue(any(isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                            and node.func.id == "display_result_table" and node.args
+                            and isinstance(node.args[0], ast.Name) and node.args[0].id == "diagnostics"
+                            for node in ast.walk(population)),
+                        "Pandas diagnostics must also use the empty-table guard.")
 
 
 if __name__ == "__main__":

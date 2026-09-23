@@ -1,5 +1,15 @@
 """Customer groups, request timing and notebook execution. Bundled for copy/paste."""
 
+def display_result_table(table, empty_message="No matching records."):
+    """Do not send empty pandas results to Databricks' schema-inference display path."""
+    if isinstance(table, pd.DataFrame) and table.empty:
+        print(empty_message)
+        if len(table.columns):
+            print("Columns: " + ", ".join(str(column) for column in table.columns))
+        return
+    display(table)
+
+
 def choose_group_customers(profiles, top_n=25, services=None, customer_names=None):
     required = {"service", "customer_key", "customer", "timing_group", "bookings",
                 "p25_day", "median_day", "p75_day"}
@@ -192,7 +202,7 @@ def get_group_population():
     profiles[["p25_day", "median_day", "p75_day"]] = profiles[["p25_day", "median_day", "p75_day"]].astype(float)
     profiles, diagnostics = assign_timing_groups(profiles, MIN_BOOKINGS, MIN_VOYAGES,
         MIN_CUSTOMERS_PER_GROUP, MAX_GROUPS, MIN_SILHOUETTE)
-    display(diagnostics)
+    display_result_table(diagnostics)
     return profiles, frame, {"year": YEAR, "services": SOURCE_SERVICES,
         "days_before": DAYS_BEFORE, "days_after": DAYS_AFTER}, end
 
@@ -267,10 +277,10 @@ def run_group_space_timeline():
     print("TEU statistics use all qualifying increases in the recorded year; timing uses only the mapped, in-window subset.")
     print("Missing request timing or quantity is not zero demand. Names are matched by case and spacing, not by fuzzy matching.")
     if SHOW_TABLES:
-        display(summary[columns].round(3))
-        display(events)
-        display(bridge)
-        display(daily.merge(selected[["service", "customer_key", "customer", "timing_group"]],
+        display_result_table(summary[columns].round(3))
+        display_result_table(events, "No qualifying requested-space increases found for the selected customers.")
+        display_result_table(bridge, "No request-plan cutoff evidence to display.")
+        display_result_table(daily.merge(selected[["service", "customer_key", "customer", "timing_group"]],
                             on=["service", "customer_key"], validate="many_to_one"))
 
     def show_customer(customer, service):
@@ -285,11 +295,11 @@ def run_group_space_timeline():
         with plt.rc_context({"font.family": "DejaVu Sans", "figure.facecolor": "white", "axes.facecolor": "white"}):
             plot_group_space_customer(day_rows, event_rows[event_rows.timing_status == "Included"],
                                       row.customer, svc, row.timing_group, before, after)
-        display(chosen[columns].round(3))
+        display_result_table(chosen[columns].round(3))
         print("Exact edit times, quantities and timing status — including unresolved edits")
-        display(event_rows)
+        display_result_table(event_rows, "No qualifying requested-space increases found for this customer and service.")
         print("Exact daily booking counts")
-        display(day_rows.sort_values("day_from_cutoff"))
+        display_result_table(day_rows.sort_values("day_from_cutoff"))
     if SHOW_FIRST_CUSTOMER:
         first = summary.iloc[0]
         show_customer(first.customer, first.service)
