@@ -1,5 +1,20 @@
 # CSAL timing and allocation dashboard
 
+## Customer booking patterns — current analysis
+
+Use [the complete customer-pattern notebook](notebooks/customer-booking-patterns/customer_booking_patterns_all_in_one.py)
+for the current question: when each customer usually books relative to TCR cutoff,
+and which customers share similar habits within each service. It calculates all
+services, keeps low-history customers visible, and produces the customer lookup
+and two focused charts. See [paste instructions and settings](notebooks/customer-booking-patterns/README.md).
+
+The user confirmed `csal_shipment.rec_cre_dt_utc` as original booking time on
+September 23, 2026. This new notebook uses that definition. Customer names are
+used as the requested identity proxy, with case and whitespace normalization.
+Current routes and cutoffs still do not reconstruct historical schedule changes.
+
+## Earlier notebook and dashboard work
+
 For notebook charts, copy [the single-cell notebook code](notebooks/csal-three-charts-cell.py) into one Databricks notebook cell and run it. It produces the daily cutoff curve, cumulative curve, and allocation revisions by weekday.
 
 For the dashboard version, use [the complete dashboard build guide](docs/CSAL_DASHBOARD_COMPLETE_BUILD.md).
@@ -16,8 +31,8 @@ This version treats a space request as an external customer booking request.
 It reads `request_submission_date` from `csal_shp_external_rqst`, checks direct
 shipment links and reference candidates, and compares available submission
 values with `csal_shipment.rec_cre_dt_utc`. It does not infer links from names.
-The red marker remains **shipment-record creation**, because its meaning as
-original booking time has not been confirmed. Blue markers show the earliest
+That earlier cell labels the red marker **shipment-record creation**; it predates
+the user's confirmation used in the customer-pattern notebook. Blue markers show the earliest
 available timed request per shipment, which can be an amendment and is not
 proof of the first request ever made. Current vessel assignment may differ
 from assignment when either timestamp was recorded.
@@ -50,8 +65,9 @@ temporary notebook views. Access corporate systems through the Windows VM.
 
 ## Interpretation
 
-Shipment-record creation has not been confirmed as original customer booking
-time. Current routes and cutoffs are not historical snapshots. Recorded
+The earlier notebooks retain their original provisional record-creation labels;
+the customer-pattern notebook above incorporates the user's later confirmation.
+Current routes and cutoffs are not historical snapshots. Recorded
 allocation revisions are not confirmed swaps. The evidence does not yet
 establish a recommendation day.
 
