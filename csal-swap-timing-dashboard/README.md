@@ -1,5 +1,20 @@
 # CSAL timing and allocation dashboard
 
+## Grouped customer timelines — latest requested view
+
+Use [the complete grouped-customer cell](notebooks/csal-group-customer-space-timeline.py)
+for the top 25 customers across the existing groups, booking and extra-space timing
+relative to TCR cutoff, and minimum/median/maximum TEU. It preserves prepared group
+assignments, or rebuilds with the same method when no prepared population exists.
+It produces separate booking-creation and requested-space figures, with group
+comparisons and individual-customer detail, and uses no Spark
+cache calls. See [paste instructions and settings](docs/GROUP_CUSTOMER_SPACE_TIMELINE.md).
+
+The audit timezone is UTC, as confirmed by the user on September 23, 2026.
+Request timing is available only where the plan has a complete, unambiguous current
+cutoff link. These are recorded increases to requested TEU and a current-cutoff
+reference; they do not reconstruct customer submission or historical schedule state.
+
 ## Customer booking patterns — current analysis
 
 Use [the complete customer-pattern notebook](notebooks/customer-booking-patterns/customer_booking_patterns_all_in_one.py)
