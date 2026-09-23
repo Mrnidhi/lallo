@@ -4,7 +4,6 @@
 
 from datetime import datetime, timezone
 from pyspark.sql import functions as F, Window
-from pyspark import StorageLevel
 
 AS_OF_UTC = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 FIRST_CUTOFF_UTC = "2026-06-01T00:00:00Z"  # explicit analysis period; edit if needed
@@ -18,13 +17,6 @@ print(
 )
 print(f"Coverage denominator: current booking-detail shipments with detail records created from {FIRST_RECORD_UTC} through as-of.")
 print("A record-creation date is a provisional timing proxy. Route and cutoff use current source rows.")
-
-for _name in ("csal_timing_base", "csal_service_coverage", "csal_service_summary", "csal_daily_curve"):
-    if _name in globals():
-        try:
-            globals()[_name].unpersist()
-        except Exception:
-            pass
 
 csal_timing_base = spark.sql(f"""
 WITH detail_raw AS (
@@ -202,7 +194,7 @@ SELECT *,
 FROM eligible
 WHERE detail_record_created_at >= CAST('{FIRST_RECORD_UTC}' AS TIMESTAMP)
   AND detail_record_created_at <= CAST('{AS_OF_UTC}' AS TIMESTAMP)
-""").persist(StorageLevel.MEMORY_AND_DISK)
+""")
 
 # The denominator comes from booking detail, so missing shipment records stay visible.
 # Sail-week fields have different possible meanings and are a diagnostic, not a join.
