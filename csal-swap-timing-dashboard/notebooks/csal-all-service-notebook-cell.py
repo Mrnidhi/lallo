@@ -16,7 +16,7 @@ print(
     f"As of {AS_OF_UTC} UTC | all services | cutoffs from {FIRST_CUTOFF_UTC} "
     f"through as-of minus {FOLLOWUP_DAYS} days"
 )
-print(f"Coverage denominator: current booking-detail shipments with shipment records created from {FIRST_RECORD_UTC} through as-of.")
+print(f"Coverage denominator: current booking-detail shipments with detail records created from {FIRST_RECORD_UTC} through as-of.")
 print("A record-creation date is a provisional timing proxy. Route and cutoff use current source rows.")
 
 for _name in ("csal_timing_base", "csal_service_coverage", "csal_service_summary", "csal_daily_curve"):
@@ -41,6 +41,7 @@ WITH detail_raw AS (
     NULLIF(UPPER(TRIM(CAST(f_load_voy_num AS STRING))), '') AS first_voyage,
     NULLIF(UPPER(TRIM(CAST(f_load_dir AS STRING))), '') AS first_direction,
     NULLIF(UPPER(TRIM(CAST(sail_week AS STRING))), '') AS detail_sail_week,
+    TRY_CAST(rec_cre_dt_utc AS TIMESTAMP) AS detail_record_created_at,
     COALESCE(TRY_CAST(rec_upd_dt_utc AS TIMESTAMP),
              TRY_CAST(rec_cre_dt_utc AS TIMESTAMP)) AS detail_updated_at
   FROM datasources.csal.csal_booking_detail
@@ -80,6 +81,7 @@ detail_one AS (
     MAX(first_svvd) AS first_svvd, MAX(loading_port) AS loading_port,
     MAX(first_port) AS first_port,
     MAX(detail_sail_week) AS detail_sail_week,
+    MIN(detail_record_created_at) AS detail_record_created_at,
     COUNT(*) AS current_detail_rows,
     COUNT(DISTINCT CONCAT_WS('||',
       COALESCE(service, '<null>'), COALESCE(corp_svvd, '<null>'),
@@ -137,7 +139,8 @@ joined AS (
 rolled AS (
   SELECT shipment_num, service, corp_svvd, first_svvd, loading_port,
     first_port, detail_sail_week, current_detail_rows,
-    current_route_variants, record_created_at, distinct_creation_times,
+    current_route_variants, detail_record_created_at,
+    record_created_at, distinct_creation_times,
     missing_creation_rows,
     COUNT(DISTINCT stop_identity) AS exact_stops,
     COUNT(DISTINCT stop_id) AS exact_stop_rows,
@@ -150,7 +153,8 @@ rolled AS (
   FROM joined
   GROUP BY shipment_num, service, corp_svvd, first_svvd,
     loading_port, first_port, detail_sail_week, current_detail_rows,
-    current_route_variants, record_created_at, distinct_creation_times,
+    current_route_variants, detail_record_created_at,
+    record_created_at, distinct_creation_times,
     missing_creation_rows
 ),
 classified AS (
@@ -180,7 +184,6 @@ eligible AS (
   SELECT *,
     CASE WHEN match_status = 'UNIQUE_CURRENT_STOP'
               AND route_class = 'DIRECT_SAME_LEG'
-              AND week_check = 'WEEK_AGREES'
               AND distinct_creation_times = 1
               AND missing_creation_rows = 0
               AND cutoff_ts >= CAST('{FIRST_CUTOFF_UTC}' AS TIMESTAMP)
@@ -197,12 +200,12 @@ SELECT *,
        WHEN record_created_at = cutoff_ts THEN 'AT CUTOFF'
   END AS exact_time_position
 FROM eligible
-WHERE record_created_at >= CAST('{FIRST_RECORD_UTC}' AS TIMESTAMP)
-  AND record_created_at <= CAST('{AS_OF_UTC}' AS TIMESTAMP)
+WHERE detail_record_created_at >= CAST('{FIRST_RECORD_UTC}' AS TIMESTAMP)
+  AND detail_record_created_at <= CAST('{AS_OF_UTC}' AS TIMESTAMP)
 """).persist(StorageLevel.MEMORY_AND_DISK)
 
-# This denominator includes every current booking-detail shipment with a usable
-# CSAL shipment-record creation time in the stated record-creation period.
+# The denominator comes from booking detail, so missing shipment records stay visible.
+# Sail-week fields have different possible meanings and are a diagnostic, not a join.
 csal_service_coverage = (
     csal_timing_base.groupBy("service")
     .agg(
@@ -211,7 +214,10 @@ csal_service_coverage = (
         F.sum(F.when(F.col("matured_direct_match"), 1).otherwise(0)).alias("matured_direct_matches"),
         F.sum(F.when(F.col("match_status") != "UNIQUE_CURRENT_STOP", 1).otherwise(0)).alias("unresolved_stop_match"),
         F.sum(F.when(F.col("route_class") == "DIFFERENT_LEGS", 1).otherwise(0)).alias("different_legs"),
+        F.sum(F.when(F.col("week_check") == "WEEK_AGREES", 1).otherwise(0)).alias("week_agrees"),
+        F.sum(F.when(F.col("week_check") == "WEEK_DIFFERS", 1).otherwise(0)).alias("week_differs"),
         F.sum(F.when(F.col("week_check") == "WEEK_UNCONFIRMED", 1).otherwise(0)).alias("week_unconfirmed"),
+        F.sum(F.when(F.col("record_created_at").isNull(), 1).otherwise(0)).alias("shipment_creation_missing"),
     )
     .withColumn("unique_stop_coverage_pct", F.round(100 * F.col("unique_current_stops") / F.col("source_shipments"), 1))
     .withColumn("matured_direct_coverage_pct", F.round(100 * F.col("matured_direct_matches") / F.col("source_shipments"), 1))
@@ -231,6 +237,8 @@ csal_service_summary = (
         F.sum(F.when(F.col("exact_time_position") == "AFTER", 1).otherwise(0)).alias("after_cutoff"),
         F.sum(F.when(F.col("exact_time_position") == "AT CUTOFF", 1).otherwise(0)).alias("at_cutoff"),
         F.expr("percentile_approx((cast(record_created_at as long) - cast(cutoff_ts as long)) / 86400.0, 0.5)").alias("median_days_relative_to_cutoff"),
+        F.sum(F.when(F.col("week_check") == "WEEK_AGREES", 1).otherwise(0)).alias("week_agrees"),
+        F.sum(F.when(F.col("week_check") == "WEEK_DIFFERS", 1).otherwise(0)).alias("week_differs"),
         F.sum(F.when(F.col("week_check") == "WEEK_UNCONFIRMED", 1).otherwise(0)).alias("week_unconfirmed"),
     )
     .withColumn("after_pct_of_comparable", F.round(100 * F.col("after_cutoff") / F.col("records_in_28_before_14_after_window"), 1))
@@ -281,5 +289,5 @@ print("3. Pooled daily curve. Negative day buckets are before cutoff; 0 is the f
 display(csal_all_service_curve)
 print("4. The eight services with the most comparable records. Full service data remains in csal_daily_curve.")
 display(csal_top_service_curve)
-print("Current routes and cutoff schedules may differ from the historical state. Sail-week agreement is shown, not assumed.")
+print("Current routes and cutoff schedules may differ from the historical state. Sail-week agreement, disagreement and missing values are shown separately; the week fields are not assumed equivalent.")
 print("These outputs describe CSAL record creation. They do not establish original booking time, actual swaps, or a recommendation policy.")
