@@ -1,6 +1,8 @@
 # CSAL timing and allocation dashboard
 
-Start with [the complete dashboard build guide](docs/CSAL_DASHBOARD_COMPLETE_BUILD.md).
+For notebook charts, copy [the single-cell notebook code](notebooks/csal-three-charts-cell.py) into one Databricks notebook cell and run it. It produces the daily cutoff curve, cumulative curve, and allocation revisions by weekday.
+
+For the dashboard version, use [the complete dashboard build guide](docs/CSAL_DASHBOARD_COMPLETE_BUILD.md).
 
 That single Markdown file contains:
 
