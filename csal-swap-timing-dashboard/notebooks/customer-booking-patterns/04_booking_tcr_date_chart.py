@@ -63,7 +63,7 @@ def _bt_inputs():
 
 def _bt_source_days(selection, status, cohort, proxy_day):
     # The unsuffixed timeline clock carries no timezone. Use it only when the
-    # saved comparison and every current selected row pass this strict guard.
+    # saved comparison agrees and every selected UTC calendar date matches.
     timeline = globals().get('CSAL_TIMELINE_COVERAGE_CHECK')
     comparison = globals().get('CSAL_BOOKING_CLOCK_COMPARISON')
     fallback = ('csal_shipment.rec_cre_dt_utc (shipment-record creation date proxy)',
@@ -107,14 +107,15 @@ def _bt_source_days(selection, status, cohort, proxy_day):
         comparison_agrees = all(int(summary.iloc[0][key]) == value for key, value in observed.items())
     except (KeyError, TypeError, ValueError, OverflowError):
         comparison_agrees = False
-    if (not comparison_agrees or not within_five.all() or not same_date.all()
+    if (not comparison_agrees or not same_date.all()
         or crossing or not timeline_day.eq(proxy_day).all()):
         return proxy_day, *fallback
     return (timeline_day,
-            'timeline bkg_cre_iodt (UTC assumed; all matched within 5 minutes)',
-            'All 25 customers have unique timeline matches; every clock is within 5 minutes '
-            'and on the same UTC date as the shipment-record clock. This agreement does not '
-            'prove the timeline field timezone or business-event meaning.')
+            'timeline bkg_cre_iodt (UTC assumed; date agrees with shipment record)',
+            f'All 25 customers have unique timeline matches; {int(within_five.sum()):,} '
+            f'of {len(cohort):,} clocks are within 5 minutes, and all are on the same '
+            'UTC date as the shipment-record clock. This agreement does not prove the '
+            'timeline field timezone or business-event meaning.')
 
 
 def _bt_draw(customers, customer_daily, before, after, source):
