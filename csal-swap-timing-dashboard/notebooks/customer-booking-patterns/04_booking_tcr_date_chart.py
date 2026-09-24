@@ -171,7 +171,10 @@ def run_csal_booking_tcr_date_chart():
             profiles.set_index(['customer_key', 'service']).bookings).all():
         raise ValueError('Daily counts do not reconcile to the selected service profiles.')
     customer_daily = daily.groupby(['customer_key', 'day_from_cutoff'], as_index=False).bookings.sum()
-    labels = profiles.merge(customers[['rank', 'customer_key', 'customer']],
+    # The saved profiles may already carry rank/customer; the ranked selection
+    # is authoritative for those display fields.
+    labels = profiles[['customer_key', 'service', 'timing_group', 'bookings']].merge(
+                            customers[['rank', 'customer_key', 'customer']],
                             on='customer_key', how='left', validate='many_to_one')
     labels = labels.sort_values(['rank', 'service'])[
         ['rank', 'customer', 'service', 'timing_group', 'bookings']]
